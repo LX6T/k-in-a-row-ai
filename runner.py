@@ -12,6 +12,7 @@ reflected in our grading, so you probably shouldn't change the GameRunner class.
 import game
 import agent
 import transcript
+import random
 
 
 class GameRunner:
@@ -106,12 +107,21 @@ if __name__ == '__main__':
     """
     import minimax_agent
 
-    # s = game.GameState.empty((5, 5), 5)
+    s = game.GameState.empty((11, 11), 6)
     # s = game.GameState.no_corners()
     # s = game.GameState.no_corners_small()
-    s = game.GameState.tic_tac_toe()
-    a1 = agent.Agent(s, game.X_PIECE)
+    # s = game.GameState.tic_tac_toe()
+    a1 = minimax_agent.MinimaxAgent(s, game.X_PIECE)
     a2 = minimax_agent.MinimaxAgent(s, game.O_PIECE)
     r = GameRunner(x_agent=a1, o_agent=a2)
 
-    r.run_game(s, time_limit=5.0, silent=False, transcript_name="out")
+    for i in range(50):
+        while not s.is_valid_move(move := (random.randint(0, s.w - 1), random.randint(0, s.h - 1))):
+            pass
+        s = s.make_move(move)
+
+    print(s)
+
+    print(a1.static_eval(s))
+
+    r.run_game(s, time_limit=1.0, silent=False, transcript_name="out")
