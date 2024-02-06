@@ -9,6 +9,136 @@ import time
 import random
 
 
+def process_count(k, last_free_squares, count, value, wins,
+                  win_next_turn_threats, k_minus_1_threats, k_minus_2_threats):
+    value += 10.0 ** (count - 1)
+    if count == k:
+        wins += 1
+    elif count == k - 1 and k >= 2:
+        win_next_turn_threats.add(last_free_squares[0])
+    elif count == k - 2 and k >= 3:
+        k_minus_1_threats.add((last_free_squares[0], last_free_squares[1]))
+    elif count == k - 3 and k >= 4:
+        k_minus_2_threats.add(
+            (last_free_squares[0], last_free_squares[1], last_free_squares[2]))
+    return value, wins
+
+
+def detect_threats(k_minus_1_threats, k_minus_2_threats, overlapping_k_minus_2_threats,
+                   win_next_next_turn_threats, win_next_next_next_turn_threats):
+    completed = set()
+    for t1 in k_minus_1_threats:
+        completed.add(t1)
+        for t2 in k_minus_1_threats.difference(completed):
+            intersection = set(t1).intersection(set(t2))
+            if len(intersection) == 1:
+                overlapping_square = intersection.pop()
+                win_next_turn_threats = tuple(set(t1).symmetric_difference(set(t2)))
+                win_next_next_turn_threats.add((overlapping_square, win_next_turn_threats))
+
+    completed = set()
+    for t1 in k_minus_2_threats:
+        completed.add(t1)
+        for t2 in k_minus_2_threats.difference(completed):
+            intersection = set(t1).intersection(set(t2))
+            if len(intersection) == 2:
+                overlapping_squares = tuple(intersection)
+                edge_squares = tuple(set(t1).symmetric_difference(set(t2)))
+                overlapping_k_minus_2_threats.add((overlapping_squares, edge_squares))
+        completed_threats = set()
+        for t2 in k_minus_1_threats:
+            completed_threats.add(t2)
+            for t3 in k_minus_1_threats.difference(completed_threats):
+                intersection_a = set(t1).intersection(t2)
+                intersection_b = set(t1).intersection(t3)
+                if len(intersection_a) == 1 and len(intersection_b) == 1 and intersection_a.isdisjoint(
+                        intersection_b):
+                    overlapping_square_a = intersection_a.pop()
+                    overlapping_square_b = intersection_b.pop()
+                    win_next_turn = tuple(set(t1).difference({overlapping_square_a, overlapping_square_b}))
+                    win_next_next_turn_threats_a = tuple({(overlapping_square_b, win_next_turn)})
+                    win_next_next_turn_threats_b = tuple({(overlapping_square_a, win_next_turn)})
+                    win_next_next_next_turn_threats.add((overlapping_square_a, win_next_next_turn_threats_a))
+                    win_next_next_next_turn_threats.add((overlapping_square_b, win_next_next_turn_threats_b))
+
+    completed = set()
+    for t1 in overlapping_k_minus_2_threats:
+        completed.add(t1)
+        for t2 in overlapping_k_minus_2_threats.difference(completed):
+            intersection = set(t1[0]).intersection(t2[0])
+            if len(intersection) == 1 and len(set(t1[0]).intersection(t2[1])) == 0:
+                overlapping_square = intersection.pop()
+                overlapping_square_a = set(t1[0]).difference({overlapping_square}).pop()
+                overlapping_square_b = set(t2[0]).difference({overlapping_square}).pop()
+                win_next_turn_threats_a = t1[1]
+                win_next_turn_threats_b = t2[1]
+                win_next_next_turn_threats = tuple(
+                    {(overlapping_square_a, win_next_turn_threats_a), (overlapping_square_b, win_next_turn_threats_b)})
+                win_next_next_next_turn_threats.add((overlapping_square, win_next_next_turn_threats))
+        for t2 in k_minus_1_threats:
+            intersection = set(t1[0]).intersection(t2)
+            if len(intersection) == 1:
+                overlapping_square = intersection.pop()
+                overlapping_square_a = set(t1[0]).difference({overlapping_square}).pop()
+                win_next_turn_threats_a = t1[1]
+                win_next_next_turn_threats = tuple({(overlapping_square_a, win_next_turn_threats_a, t2)})
+                forced_square = t2[1] if overlapping_square == t2[0] else t2[0]
+                if (forced_square != win_next_next_turn_threats[0][0] and
+                        forced_square not in win_next_next_turn_threats[0][1]):
+                    win_next_next_next_turn_threats.add((overlapping_square, win_next_next_turn_threats))
+
+
+def block_threats(blocking_square, k_minus_1_threats, k_minus_2_threats, win_next_turn_threats,
+                  win_next_next_turn_threats, win_next_next_next_turn_threats):
+
+    k_minus_1_threats_revised = k_minus_1_threats.copy()
+    for t1 in k_minus_1_threats:
+        if blocking_square in t1:
+            win_next_turn_threats.update(set(t1).difference({blocking_square}))
+            k_minus_1_threats_revised.remove(t1)
+    k_minus_1_threats = k_minus_1_threats_revised
+
+    win_next_next_turn_threats_revised = win_next_next_turn_threats.copy()
+    for w1 in win_next_next_turn_threats:
+        if blocking_square == w1[0]:
+            win_next_turn_threats.update(w1[1])
+            win_next_next_turn_threats_revised.remove(w1)
+        else:
+            for w2 in w1[1]:
+                if blocking_square == w2:
+                    win_next_turn_threats.add(w1[0])
+                    win_next_next_turn_threats_revised.remove(w1)
+    win_next_next_turn_threats = win_next_next_turn_threats_revised
+
+    k_minus_2_threats_revised = k_minus_2_threats.copy()
+    for t1 in k_minus_2_threats:
+        if blocking_square in t1:
+            k_minus_1_threats.add(tuple(set(t1).difference({blocking_square})))
+            k_minus_2_threats_revised.remove(t1)
+    k_minus_2_threats = k_minus_2_threats_revised
+
+    win_next_next_next_turn_threats_revised = win_next_next_next_turn_threats.copy()
+    for w1 in win_next_next_next_turn_threats:
+        if blocking_square == w1[0]:
+            win_next_next_turn_threats.update(w1[1])
+            win_next_next_next_turn_threats_revised.remove(w1)
+        else:
+            for w2 in w1[1]:
+                if blocking_square == w2[0]:
+                    win_next_next_turn_threats.add(w2)
+                    win_next_next_next_turn_threats_revised.remove(w1)
+    win_next_next_next_turn_threats = win_next_next_next_turn_threats_revised
+
+
+def get_squares_from_threat(threat):
+    squares = {threat[1][0][0]}.union(threat[1][0][1])
+    if len(threat[1][0]) == 3:
+        squares.update(threat[1][0][2])
+    if len(threat[1]) == 2:
+        squares.update({threat[1][1][0]}.union(threat[1][1][1]))
+    return squares
+
+
 class MinimaxAgent(agent.Agent):
     def __init__(self, initial_state: game.GameState, piece: str):
         super().__init__(initial_state, piece)
@@ -240,21 +370,21 @@ class MinimaxAgent(agent.Agent):
         k = state.k
 
         value = 0
+        win_value = 10.0 ** (k + 21)
         a_piece = state.next_player
         b_piece = game.O_PIECE if a_piece == game.X_PIECE else game.X_PIECE
-        win_value = 10.0 ** (k + 21)
         a_sign = 1 if a_piece == game.X_PIECE else -1
         b_sign = -a_sign
         a_value = 0
         b_value = 0
         a_wins = 0
         b_wins = 0
-        a_wins_next_turn = set()
-        b_wins_next_turn = set()
-        a_wins_next_next_turn = set()
-        b_wins_next_next_turn = set()
-        a_wins_next_next_next_turn = set()
-        b_wins_next_next_next_turn = set()
+        a_win_next_turn_threats = set()
+        b_win_next_turn_threats = set()
+        a_win_next_next_turn_threats = set()
+        b_win_next_next_turn_threats = set()
+        a_win_next_next_next_turn_threats = set()
+        b_win_next_next_next_turn_threats = set()
         a_k_minus_1_threats = set()
         b_k_minus_1_threats = set()
         a_k_minus_2_threats = set()
@@ -286,6 +416,7 @@ class MinimaxAgent(agent.Agent):
 
                     row = i
                     col = j
+                    last_free_squares = [None, None, None]
                     a_count = 0
                     b_count = 0
                     a_blocked = False
@@ -295,9 +426,6 @@ class MinimaxAgent(agent.Agent):
                     Count A's and B's in k-in-a-row-squares starting from (i,j), stepping in direction (x,y)
                     If blocked by an opposing piece, no way to get k-in-a-row = no added value
                     """
-                    last_free_square = None
-                    last_last_free_square = None
-                    last_last_last_free_square = None
                     for square in range(k):
 
                         try:
@@ -313,9 +441,9 @@ class MinimaxAgent(agent.Agent):
                                 b_count += 1
                                 a_blocked = True
                             else:
-                                last_last_last_free_square = last_last_free_square
-                                last_last_free_square = last_free_square
-                                last_free_square = (row, col)
+                                last_free_squares[2] = last_free_squares[1]
+                                last_free_squares[1] = last_free_squares[0]
+                                last_free_squares[0] = (row, col)
                             row += y
                             col += x
                         except IndexError:
@@ -334,151 +462,22 @@ class MinimaxAgent(agent.Agent):
                     Each (k-3)-filled-in-a-k-row can become a (k-2)-filled-in-a-k-row next turn
                     Each (k-3)-filled-in-a-(k-2)-row with space on both sides = potential win next next next turn
                     """
+
                     if a_count > 0 and not a_blocked:
-                        a_value += 10.0 ** (a_count - 1)
-                        if a_count == k:
-                            a_wins += 1
-                        elif a_count == k - 1 and k >= 2:
-                            a_wins_next_turn.add(last_free_square)
-                        elif a_count == k - 2 and k >= 3:
-                            a_k_minus_1_threats.add((last_free_square, last_last_free_square))
-                        elif a_count == k - 3 and k >= 4:
-                            a_k_minus_2_threats.add(
-                                (last_free_square, last_last_free_square, last_last_last_free_square))
+                        a_value, a_wins = process_count(k, last_free_squares, a_count, a_value, a_wins,
+                                                        a_win_next_turn_threats, a_k_minus_1_threats,
+                                                        a_k_minus_2_threats)
 
-                    if b_count > 0 and not b_blocked:
-                        b_value += 10.0 ** (b_count - 1)
-                        if b_count == k:
-                            b_wins += 1
-                        elif b_count == k - 1 and k >= 2:
-                            b_wins_next_turn.add(last_free_square)
-                        elif b_count == k - 2 and k >= 3:
-                            b_k_minus_1_threats.add((last_free_square, last_last_free_square))
-                        elif b_count == k - 3 and k >= 4:
-                            b_k_minus_2_threats.add(
-                                (last_free_square, last_last_free_square, last_last_last_free_square))
+                    elif b_count > 0 and not b_blocked:
+                        b_value, b_wins = process_count(k, last_free_squares, b_count, b_value, b_wins,
+                                                        b_win_next_turn_threats, b_k_minus_1_threats,
+                                                        b_k_minus_2_threats)
 
-        completed = set()
-        for t1 in a_k_minus_1_threats:
-            completed.add(t1)
-            for t2 in a_k_minus_1_threats.difference(completed):
-                intersection = set(t1).intersection(set(t2))
-                if len(intersection) == 1:
-                    overlapping_square = intersection.pop()
-                    wins_next_turn = tuple(set(t1).symmetric_difference(set(t2)))
-                    a_wins_next_next_turn.add((overlapping_square, wins_next_turn))
+        detect_threats(a_k_minus_1_threats, a_k_minus_2_threats, a_overlapping_k_minus_2_threats,
+                       a_win_next_next_turn_threats, a_win_next_next_next_turn_threats)
 
-        completed = set()
-        for t1 in a_k_minus_2_threats:
-            completed.add(t1)
-            for t2 in a_k_minus_2_threats.difference(completed):
-                intersection = set(t1).intersection(set(t2))
-                if len(intersection) == 2:
-                    overlapping_squares = tuple(intersection)
-                    edge_squares = tuple(set(t1).symmetric_difference(set(t2)))
-                    a_overlapping_k_minus_2_threats.add((overlapping_squares, edge_squares))
-            completed_threats = set()
-            for t2 in a_k_minus_1_threats:
-                completed_threats.add(t2)
-                for t3 in a_k_minus_1_threats.difference(completed_threats):
-                    intersection_a = set(t1).intersection(t2)
-                    intersection_b = set(t1).intersection(t3)
-                    if len(intersection_a) == 1 and len(intersection_b) == 1 and intersection_a.isdisjoint(
-                            intersection_b):
-                        overlapping_square_a = intersection_a.pop()
-                        overlapping_square_b = intersection_b.pop()
-                        win_next_turn = tuple(set(t1).difference({overlapping_square_a, overlapping_square_b}))
-                        wins_next_next_turn_a = tuple({(overlapping_square_b, win_next_turn)})
-                        wins_next_next_turn_b = tuple({(overlapping_square_a, win_next_turn)})
-                        a_wins_next_next_next_turn.add((overlapping_square_a, wins_next_next_turn_a))
-                        a_wins_next_next_next_turn.add((overlapping_square_b, wins_next_next_turn_b))
-
-        completed = set()
-        for t1 in a_overlapping_k_minus_2_threats:
-            completed.add(t1)
-            for t2 in a_overlapping_k_minus_2_threats.difference(completed):
-                intersection = set(t1[0]).intersection(t2[0])
-                if len(intersection) == 1 and len(set(t1[0]).intersection(t2[1])) == 0:
-                    overlapping_square = intersection.pop()
-                    overlapping_square_a = set(t1[0]).difference({overlapping_square}).pop()
-                    overlapping_square_b = set(t2[0]).difference({overlapping_square}).pop()
-                    wins_next_turn_a = t1[1]
-                    wins_next_turn_b = t2[1]
-                    wins_next_next_turn = tuple(
-                        {(overlapping_square_a, wins_next_turn_a), (overlapping_square_b, wins_next_turn_b)})
-                    a_wins_next_next_next_turn.add((overlapping_square, wins_next_next_turn))
-            for t2 in a_k_minus_1_threats:
-                intersection = set(t1[0]).intersection(t2)
-                if len(intersection) == 1:
-                    overlapping_square = intersection.pop()
-                    overlapping_square_a = set(t1[0]).difference({overlapping_square}).pop()
-                    wins_next_turn_a = t1[1]
-                    wins_next_next_turn = tuple({(overlapping_square_a, wins_next_turn_a, t2)})
-                    b_forced_square = t2[1] if overlapping_square == t2[0] else t2[0]
-                    if (b_forced_square != wins_next_next_turn[0][0] and
-                            b_forced_square not in wins_next_next_turn[0][1]):
-                        a_wins_next_next_next_turn.add((overlapping_square, wins_next_next_turn))
-
-        completed = set()
-        for t1 in b_k_minus_1_threats:
-            completed.add(t1)
-            for t2 in b_k_minus_1_threats.difference(completed):
-                intersection = set(t1).intersection(set(t2))
-                if len(intersection) == 1:
-                    overlapping_square = intersection.pop()
-                    wins_next_turn = tuple(set(t1).symmetric_difference(set(t2)))
-                    b_wins_next_next_turn.add((overlapping_square, wins_next_turn))
-            completed_threats = set()
-            for t2 in b_k_minus_1_threats:
-                completed_threats.add(t2)
-                for t3 in b_k_minus_1_threats.difference(completed_threats):
-                    intersection_a = set(t1).intersection(t2)
-                    intersection_b = set(t1).intersection(t3)
-                    if len(intersection_a) == 1 and len(intersection_b) == 1 and intersection_a.isdisjoint(
-                            intersection_b):
-                        overlapping_square_a = intersection_a.pop()
-                        overlapping_square_b = intersection_b.pop()
-                        win_next_turn = tuple(set(t1).difference({overlapping_square_a, overlapping_square_b}))
-                        wins_next_next_turn_a = tuple({(overlapping_square_b, win_next_turn)})
-                        wins_next_next_turn_b = tuple({(overlapping_square_a, win_next_turn)})
-                        b_wins_next_next_next_turn.add((overlapping_square_a, wins_next_next_turn_a))
-                        b_wins_next_next_next_turn.add((overlapping_square_b, wins_next_next_turn_b))
-
-        completed = set()
-        for t1 in b_k_minus_2_threats:
-            completed.add(t1)
-            for t2 in b_k_minus_2_threats.difference(completed):
-                intersection = set(t1).intersection(set(t2))
-                if len(intersection) == 2:
-                    overlapping_squares = tuple(intersection)
-                    edge_squares = tuple(set(t1).symmetric_difference(set(t2)))
-                    b_overlapping_k_minus_2_threats.add((overlapping_squares, edge_squares))
-
-        completed = set()
-        for t1 in b_overlapping_k_minus_2_threats:
-            completed.add(t1)
-            for t2 in b_overlapping_k_minus_2_threats.difference(completed):
-                intersection = set(t1[0]).intersection(t2[0])
-                if len(intersection) == 1 and len(set(t1[0]).intersection(t2[1])) == 0:
-                    overlapping_square = intersection.pop()
-                    overlapping_square_a = set(t1[0]).difference({overlapping_square}).pop()
-                    overlapping_square_b = set(t2[0]).difference({overlapping_square}).pop()
-                    wins_next_turn_a = t1[1]
-                    wins_next_turn_b = t2[1]
-                    wins_next_next_turn = tuple(
-                        {(overlapping_square_a, wins_next_turn_a), (overlapping_square_b, wins_next_turn_b)})
-                    b_wins_next_next_next_turn.add((overlapping_square, wins_next_next_turn))
-            for t2 in b_k_minus_1_threats:
-                intersection = set(t1[0]).intersection(t2)
-                if len(intersection) == 1:
-                    overlapping_square = intersection.pop()
-                    overlapping_square_a = set(t1[0]).difference({overlapping_square}).pop()
-                    wins_next_turn_a = t1[1]
-                    wins_next_next_turn = tuple({(overlapping_square_a, wins_next_turn_a, t2)})
-                    a_forced_square = t2[1] if overlapping_square == t2[0] else t2[0]
-                    if (a_forced_square != wins_next_next_turn[0][0] and
-                            a_forced_square not in wins_next_next_turn[0][1]):
-                        b_wins_next_next_next_turn.add((overlapping_square, wins_next_next_turn))
+        detect_threats(b_k_minus_1_threats, b_k_minus_2_threats, b_overlapping_k_minus_2_threats,
+                       b_win_next_next_turn_threats, b_win_next_next_next_turn_threats)
 
         a_win_value = a_sign * win_value * (1 + a_value / 10 ** k)
         b_win_value = b_sign * win_value * (1 + b_value / 10 ** k)
@@ -501,13 +500,13 @@ class MinimaxAgent(agent.Agent):
             B wins in 1 move (B)
             """
             value = b_win_value / 10 ** 1
-        elif len(a_wins_next_turn) >= 1:
+        elif len(a_win_next_turn_threats) >= 1:
             """
             A will win on the next turn
             A wins in 2 moves (BA)
             """
             value = a_win_value / 10 ** 2
-        elif len(b_wins_next_turn) >= 2:
+        elif len(b_win_next_turn_threats) >= 2:
             """
             Multiple ways for B to win, A can only block 1 on their turn, B wins next turn
             B wins in 3 moves (BAB)
@@ -518,119 +517,23 @@ class MinimaxAgent(agent.Agent):
             At this point:
                 len(a_wins) = 0
                 len(b_wins) = 0
-                len(a_wins_next_turn) = 0
-                len(b_wins_next_turn) <= 1
+                len(a_win_next_turn_threats) = 0
+                len(b_win_next_turn_threats) <= 1
             """
 
             """Fast forward through any series of forced moves"""
             fast_forward_counter = 0
             while True:
-                if len(b_wins_next_turn) == 1:
-                    blocking_square = b_wins_next_turn.pop()
+                if len(b_win_next_turn_threats) == 1:
+                    blocking_square = b_win_next_turn_threats.pop()
                     state = state.make_move(blocking_square)
-                    # print(f"Play A at {blocking_square} to block B's win")
-                    # print(state)
                     fast_forward_counter += 1
 
-                    a_k_minus_1_threats_revised = a_k_minus_1_threats.copy()
-                    for t1 in a_k_minus_1_threats:
-                        if blocking_square in t1:
-                            a_wins_next_turn.update(set(t1).difference({blocking_square}))
-                            a_k_minus_1_threats_revised.remove(t1)
-                    a_k_minus_1_threats = a_k_minus_1_threats_revised
+                    block_threats(blocking_square, a_k_minus_1_threats, a_k_minus_2_threats, a_win_next_turn_threats,
+                                  a_win_next_next_turn_threats, a_win_next_next_next_turn_threats)
 
-                    a_wins_next_next_turn_revised = a_wins_next_next_turn.copy()
-                    for w1 in a_wins_next_next_turn:
-                        if blocking_square == w1[0]:
-                            a_wins_next_turn.update(w1[1])
-                            a_wins_next_next_turn_revised.remove(w1)
-                        else:
-                            for w2 in w1[1]:
-                                if blocking_square == w2:
-                                    a_wins_next_turn.add(w1[0])
-                                    a_wins_next_next_turn_revised.remove(w1)
-                    a_wins_next_next_turn = a_wins_next_next_turn_revised
-
-                    a_k_minus_2_threats_revised = a_k_minus_2_threats.copy()
-                    for t1 in a_k_minus_2_threats:
-                        if blocking_square in t1:
-                            a_k_minus_1_threats.add(tuple(set(t1).difference({blocking_square})))
-                            a_k_minus_2_threats_revised.remove(t1)
-                    a_k_minus_2_threats = a_k_minus_2_threats_revised
-
-                    a_wins_next_next_next_turn_revised = a_wins_next_next_next_turn.copy()
-                    for w1 in a_wins_next_next_next_turn:
-                        if blocking_square == w1[0]:
-                            a_wins_next_next_turn.update(w1[1])
-                            a_wins_next_next_next_turn_revised.remove(w1)
-                        else:
-                            for w2 in w1[1]:
-                                if blocking_square == w2[0]:
-                                    a_wins_next_next_turn.add(w2)
-                                    a_wins_next_next_next_turn_revised.remove(w1)
-                    a_wins_next_next_next_turn = a_wins_next_next_next_turn_revised
-
-                    completed = set()
-                    for t1 in a_k_minus_1_threats:
-                        completed.add(t1)
-                        for t2 in a_k_minus_1_threats.difference(completed):
-                            intersection = set(t1).intersection(set(t2))
-                            if len(intersection) == 1:
-                                overlapping_square = intersection.pop()
-                                wins_next_turn = tuple(set(t1).symmetric_difference(set(t2)))
-                                a_wins_next_next_turn.add((overlapping_square, wins_next_turn))
-
-                    completed = set()
-                    for t1 in a_k_minus_2_threats:
-                        completed.add(t1)
-                        for t2 in a_k_minus_2_threats.difference(completed):
-                            intersection = set(t1).intersection(set(t2))
-                            if len(intersection) == 2:
-                                overlapping_squares = tuple(intersection)
-                                edge_squares = tuple(set(t1).symmetric_difference(set(t2)))
-                                a_overlapping_k_minus_2_threats.add((overlapping_squares, edge_squares))
-                        completed_threats = set()
-                        for t2 in a_k_minus_1_threats:
-                            completed_threats.add(t2)
-                            for t3 in a_k_minus_1_threats.difference(completed_threats):
-                                intersection_a = set(t1).intersection(t2)
-                                intersection_b = set(t1).intersection(t3)
-                                if len(intersection_a) == 1 and len(intersection_b) == 1 and intersection_a.isdisjoint(
-                                        intersection_b):
-                                    overlapping_square_a = intersection_a.pop()
-                                    overlapping_square_b = intersection_b.pop()
-                                    win_next_turn = tuple(
-                                        set(t1).difference({overlapping_square_a, overlapping_square_b}))
-                                    wins_next_next_turn_a = tuple({(overlapping_square_b, win_next_turn)})
-                                    wins_next_next_turn_b = tuple({(overlapping_square_a, win_next_turn)})
-                                    a_wins_next_next_next_turn.add((overlapping_square_a, wins_next_next_turn_a))
-                                    a_wins_next_next_next_turn.add((overlapping_square_b, wins_next_next_turn_b))
-
-                    completed = set()
-                    for t1 in a_overlapping_k_minus_2_threats:
-                        completed.add(t1)
-                        for t2 in a_overlapping_k_minus_2_threats.difference(completed):
-                            intersection = set(t1[0]).intersection(t2[0])
-                            if len(intersection) == 1 and len(set(t1[0]).intersection(t2[1])) == 0:
-                                overlapping_square = intersection.pop()
-                                overlapping_square_a = set(t1[0]).difference({overlapping_square}).pop()
-                                overlapping_square_b = set(t2[0]).difference({overlapping_square}).pop()
-                                wins_next_turn_a = t1[1]
-                                wins_next_turn_b = t2[1]
-                                wins_next_next_turn = tuple({(overlapping_square_a, wins_next_turn_a),
-                                                             (overlapping_square_b, wins_next_turn_b)})
-                                a_wins_next_next_next_turn.add((overlapping_square, wins_next_next_turn))
-                        for t2 in a_k_minus_1_threats:
-                            intersection = set(t1[0]).intersection(t2)
-                            if len(intersection) == 1:
-                                overlapping_square = intersection.pop()
-                                overlapping_square_a = set(t1[0]).difference({overlapping_square}).pop()
-                                wins_next_turn_a = t1[1]
-                                wins_next_next_turn = tuple({(overlapping_square_a, wins_next_turn_a, t2)})
-                                b_forced_square = t2[1] if overlapping_square == t2[0] else t2[0]
-                                if b_forced_square != wins_next_next_turn[0][0] and b_forced_square not in \
-                                        wins_next_next_turn[0][1]:
-                                    a_wins_next_next_next_turn.add((overlapping_square, wins_next_next_turn))
+                    detect_threats(a_k_minus_1_threats, a_k_minus_2_threats, a_overlapping_k_minus_2_threats,
+                                   a_win_next_next_turn_threats, a_win_next_next_next_turn_threats)
 
                     for (x, y) in directions:
                         for scan in range(1 - k, 1):
@@ -638,13 +541,11 @@ class MinimaxAgent(agent.Agent):
                             j = blocking_square[1] + scan * x
                             row = i
                             col = j
+                            last_free_squares = [None, None, None]
                             a_count = 0
                             b_count = 0
                             a_blocked = False
                             b_blocked = False
-                            last_last_last_free_square = None
-                            last_last_free_square = None
-                            last_free_square = None
                             for square in range(k):
                                 if row < 0 or row > h - 1 or col < 0 or col > w - 1:
                                     a_blocked = True
@@ -665,9 +566,9 @@ class MinimaxAgent(agent.Agent):
                                         if (row, col) != blocking_square:
                                             b_blocked = True
                                     else:
-                                        last_last_last_free_square = last_last_free_square
-                                        last_last_free_square = last_free_square
-                                        last_free_square = (row, col)
+                                        last_free_squares[2] = last_free_squares[1]
+                                        last_free_squares[1] = last_free_squares[0]
+                                        last_free_squares[0] = (row, col)
                                     row += y
                                     col += x
                                 except IndexError:
@@ -678,14 +579,9 @@ class MinimaxAgent(agent.Agent):
                             if b_count > 0 and not b_blocked:
                                 b_value -= 10.0 ** (b_count - 1)
                             if a_count > 0 and not a_blocked:
-                                a_value += 10.0 ** (a_count - 1)
-                                if a_count > 1:
-                                    a_value -= 10.0 ** (a_count - 2)
-                                if a_count == k - 2 and k >= 3:
-                                    a_k_minus_1_threats.add((last_free_square, last_last_free_square))
-                                elif a_count == k - 3 and k >= 4:
-                                    a_k_minus_2_threats.add(
-                                        (last_free_square, last_last_free_square, last_last_last_free_square))
+                                a_value, a_wins = process_count(k, last_free_squares, a_count, a_value, a_wins,
+                                                                a_win_next_turn_threats, a_k_minus_1_threats,
+                                                                a_k_minus_2_threats)
 
                     b_k_minus_1_threats_revised = b_k_minus_1_threats.copy()
                     for t1 in b_k_minus_1_threats:
@@ -693,11 +589,11 @@ class MinimaxAgent(agent.Agent):
                             b_k_minus_1_threats_revised.remove(t1)
                     b_k_minus_1_threats = b_k_minus_1_threats_revised
 
-                    b_wins_next_next_turn_revised = b_wins_next_next_turn.copy()
-                    for w1 in b_wins_next_next_turn:
+                    b_win_next_next_turn_threats_revised = b_win_next_next_turn_threats.copy()
+                    for w1 in b_win_next_next_turn_threats:
                         if blocking_square == w1[0] or blocking_square in w1[1]:
-                            b_wins_next_next_turn_revised.remove(w1)
-                    b_wins_next_next_turn = b_wins_next_next_turn_revised
+                            b_win_next_next_turn_threats_revised.remove(w1)
+                    b_win_next_next_turn_threats = b_win_next_next_turn_threats_revised
 
                     b_k_minus_2_threats_revised = b_k_minus_2_threats.copy()
                     for t1 in b_k_minus_2_threats:
@@ -711,246 +607,39 @@ class MinimaxAgent(agent.Agent):
                             b_k_minus_2_threats_revised.remove(t1)
                     b_k_minus_2_threats = b_k_minus_2_threats_revised
 
-                    b_wins_next_next_next_turn_revised = b_wins_next_next_next_turn.copy()
-                    for w1 in b_wins_next_next_next_turn:
+                    b_win_next_next_next_turn_threats_revised = b_win_next_next_next_turn_threats.copy()
+                    for w1 in b_win_next_next_next_turn_threats:
                         if blocking_square == w1[0]:
-                            b_wins_next_next_next_turn_revised.remove(w1)
+                            b_win_next_next_next_turn_threats_revised.remove(w1)
                         else:
                             for w2 in w1[1]:
                                 if blocking_square == w2[0] or blocking_square in w2[1] or (
                                         len(w2) == 3 and blocking_square in w2[2]):
-                                    b_wins_next_next_next_turn_revised.remove(w1)
+                                    b_win_next_next_next_turn_threats_revised.remove(w1)
                                     break
-                    b_wins_next_next_next_turn = b_wins_next_next_next_turn_revised
+                    b_win_next_next_next_turn_threats = b_win_next_next_next_turn_threats_revised
 
                     a_win_value = a_sign * win_value * (1 + a_value / 10 ** k)
                     b_win_value = b_sign * win_value * (1 + b_value / 10 ** k)
 
-                    if len(a_wins_next_turn) == 1:
-                        blocking_square = a_wins_next_turn.pop()
-                        state = state.make_move(blocking_square)
-                        # print(f"Play B at {blocking_square} to block A's win")
-                        # print(state)
-                        fast_forward_counter += 1
-
-                        b_k_minus_1_threats_revised = b_k_minus_1_threats.copy()
-                        for t1 in b_k_minus_1_threats:
-                            if blocking_square in t1:
-                                b_wins_next_turn.update(set(t1).difference({blocking_square}))
-                                b_k_minus_1_threats_revised.remove(t1)
-                        b_k_minus_1_threats = b_k_minus_1_threats_revised
-
-                        b_wins_next_next_turn_revised = b_wins_next_next_turn.copy()
-                        for w1 in b_wins_next_next_turn:
-                            if blocking_square == w1[0]:
-                                b_wins_next_turn.update(w1[1])
-                                b_wins_next_next_turn_revised.remove(w1)
-                            else:
-                                for w2 in w1[1]:
-                                    if blocking_square == w2:
-                                        b_wins_next_turn.add(w1[0])
-                                        b_wins_next_next_turn_revised.remove(w1)
-                        b_wins_next_next_turn = b_wins_next_next_turn_revised
-
-                        b_k_minus_2_threats_revised = b_k_minus_2_threats.copy()
-                        for t1 in b_k_minus_2_threats:
-                            if blocking_square in t1:
-                                b_k_minus_1_threats.add(tuple(set(t1).difference({blocking_square})))
-                                b_k_minus_2_threats_revised.remove(t1)
-                        b_k_minus_2_threats = b_k_minus_2_threats_revised
-
-                        b_wins_next_next_next_turn_revised = b_wins_next_next_next_turn.copy()
-                        for w1 in b_wins_next_next_next_turn:
-                            if blocking_square == w1[0]:
-                                b_wins_next_next_turn.update(w1[1])
-                                b_wins_next_next_next_turn_revised.remove(w1)
-                            else:
-                                for w2 in w1[1]:
-                                    if blocking_square == w2[0]:
-                                        b_wins_next_next_turn.add(w2)
-                                        b_wins_next_next_next_turn_revised.remove(w1)
-                        b_wins_next_next_next_turn = b_wins_next_next_next_turn_revised
-
-                        completed = set()
-                        for t1 in b_k_minus_1_threats:
-                            completed.add(t1)
-                            for t2 in b_k_minus_1_threats.difference(completed):
-                                intersection = set(t1).intersection(set(t2))
-                                if len(intersection) == 1:
-                                    overlapping_square = intersection.pop()
-                                    wins_next_turn = tuple(set(t1).symmetric_difference(set(t2)))
-                                    b_wins_next_next_turn.add((overlapping_square, wins_next_turn))
-
-                        completed = set()
-                        for t1 in b_k_minus_2_threats:
-                            completed.add(t1)
-                            for t2 in b_k_minus_2_threats.difference(completed):
-                                intersection = set(t1).intersection(set(t2))
-                                if len(intersection) == 2:
-                                    overlapping_squares = tuple(intersection)
-                                    edge_squares = tuple(set(t1).symmetric_difference(set(t2)))
-                                    b_overlapping_k_minus_2_threats.add((overlapping_squares, edge_squares))
-                            completed_threats = set()
-                            for t2 in b_k_minus_1_threats:
-                                completed_threats.add(t2)
-                                for t3 in b_k_minus_1_threats.difference(completed_threats):
-                                    intersection_a = set(t1).intersection(t2)
-                                    intersection_b = set(t1).intersection(t3)
-                                    if (len(intersection_a) == 1 and
-                                            len(intersection_b) == 1 and
-                                            intersection_a.isdisjoint(intersection_b)):
-                                        overlapping_square_a = intersection_a.pop()
-                                        overlapping_square_b = intersection_b.pop()
-                                        win_next_turn = tuple(
-                                            set(t1).difference({overlapping_square_a, overlapping_square_b}))
-                                        wins_next_next_turn_a = tuple({(overlapping_square_b, win_next_turn)})
-                                        wins_next_next_turn_b = tuple({(overlapping_square_a, win_next_turn)})
-                                        b_wins_next_next_next_turn.add((overlapping_square_a, wins_next_next_turn_a))
-                                        b_wins_next_next_next_turn.add((overlapping_square_b, wins_next_next_turn_b))
-
-                        completed = set()
-                        for t1 in b_overlapping_k_minus_2_threats:
-                            completed.add(t1)
-                            for t2 in b_overlapping_k_minus_2_threats.difference(completed):
-                                intersection = set(t1[0]).intersection(t2[0])
-                                if len(intersection) == 1 and len(set(t1[0]).intersection(t2[1])) == 0:
-                                    overlapping_square = intersection.pop()
-                                    overlapping_square_a = set(t1[0]).difference({overlapping_square}).pop()
-                                    overlapping_square_b = set(t2[0]).difference({overlapping_square}).pop()
-                                    wins_next_turn_a = t1[1]
-                                    wins_next_turn_b = t2[1]
-                                    wins_next_next_turn = tuple({(overlapping_square_a, wins_next_turn_a),
-                                                                 (overlapping_square_b, wins_next_turn_b)})
-                                    b_wins_next_next_next_turn.add((overlapping_square, wins_next_next_turn))
-                            for t2 in b_k_minus_1_threats:
-                                intersection = set(t1[0]).intersection(t2)
-                                if len(intersection) == 1:
-                                    overlapping_square = intersection.pop()
-                                    overlapping_square_a = set(t1[0]).difference({overlapping_square}).pop()
-                                    wins_next_turn_a = t1[1]
-                                    wins_next_next_turn = tuple({(overlapping_square_a, wins_next_turn_a, t2)})
-                                    a_forced_square = t2[1] if overlapping_square == t2[0] else t2[0]
-                                    if a_forced_square != wins_next_next_turn[0][0] and a_forced_square not in \
-                                            wins_next_next_turn[0][1]:
-                                        b_wins_next_next_next_turn.add((overlapping_square, wins_next_next_turn))
-
-                        for (x, y) in directions:
-                            for scan in range(1 - k, 1):
-                                i = blocking_square[0] + scan * y
-                                j = blocking_square[1] + scan * x
-                                row = i
-                                col = j
-                                a_count = 0
-                                b_count = 0
-                                a_blocked = False
-                                b_blocked = False
-                                last_last_last_free_square = None
-                                last_last_free_square = None
-                                last_free_square = None
-                                for square in range(k):
-                                    if row < 0 or row > h - 1 or col < 0 or col > w - 1:
-                                        a_blocked = True
-                                        b_blocked = True
-                                        break
-
-                                    try:
-                                        current_piece = state.board[row][col]
-                                        if current_piece == game.BLOCK_PIECE:
-                                            a_blocked = True
-                                            b_blocked = True
-                                            break
-                                        elif current_piece == a_piece:
-                                            a_count += 1
-                                            b_blocked = True
-                                        elif current_piece == b_piece:
-                                            b_count += 1
-                                            if (row, col) != blocking_square:
-                                                a_blocked = True
-                                        else:
-                                            last_last_last_free_square = last_last_free_square
-                                            last_last_free_square = last_free_square
-                                            last_free_square = (row, col)
-                                        row += y
-                                        col += x
-                                    except IndexError:
-                                        a_blocked = True
-                                        b_blocked = True
-                                        break
-
-                                if a_count > 0 and not a_blocked:
-                                    b_value -= 10.0 ** (b_count - 1)
-                                if b_count > 0 and not b_blocked:
-                                    b_value += 10.0 ** (b_count - 1)
-                                    if b_count > 1:
-                                        b_value -= 10.0 ** (b_count - 2)
-                                    if b_count == k - 2 and k >= 3:
-                                        b_k_minus_1_threats.add((last_free_square, last_last_free_square))
-                                    elif b_count == k - 3 and k >= 4:
-                                        b_k_minus_2_threats.add(
-                                            (last_free_square, last_last_free_square, last_last_last_free_square))
-
-                        a_k_minus_1_threats_revised = a_k_minus_1_threats.copy()
-                        for t1 in a_k_minus_1_threats:
-                            if blocking_square in t1:
-                                a_k_minus_1_threats_revised.remove(t1)
-                        a_k_minus_1_threats = a_k_minus_1_threats_revised
-
-                        a_wins_next_next_turn_revised = a_wins_next_next_turn.copy()
-                        for w1 in a_wins_next_next_turn:
-                            if blocking_square == w1[0] or blocking_square in w1[1]:
-                                a_wins_next_next_turn_revised.remove(w1)
-                        a_wins_next_next_turn = a_wins_next_next_turn_revised
-
-                        a_k_minus_2_threats_revised = a_k_minus_2_threats.copy()
-                        for t1 in a_k_minus_2_threats:
-                            if blocking_square in t1:
-                                a_k_minus_2_threats_revised.remove(t1)
-                        a_k_minus_2_threats = a_k_minus_2_threats_revised
-
-                        a_k_minus_2_threats_revised = a_k_minus_2_threats.copy()
-                        for t1 in a_k_minus_2_threats:
-                            if blocking_square in t1[0] or blocking_square in t1[1]:
-                                a_k_minus_2_threats_revised.remove(t1)
-                        a_k_minus_2_threats = a_k_minus_2_threats_revised
-
-                        a_wins_next_next_next_turn_revised = a_wins_next_next_next_turn.copy()
-                        for w1 in a_wins_next_next_next_turn:
-                            if blocking_square == w1[0]:
-                                a_wins_next_next_next_turn_revised.remove(w1)
-                            else:
-                                for w2 in w1[1]:
-                                    if blocking_square == w2[0] or blocking_square in w2[1] or (
-                                            len(w2) == 3 and blocking_square in w2[2]):
-                                        a_wins_next_next_next_turn_revised.remove(w1)
-                                        break
-                        a_wins_next_next_next_turn = a_wins_next_next_next_turn_revised
-
-                        a_win_value = a_sign * win_value * (1 + a_value / 10 ** k)
-                        b_win_value = b_sign * win_value * (1 + b_value / 10 ** k)
-
-                    else:
-                        if len(a_wins_next_turn) > 1:
-                            """
-                            A has multiple wins on their next turn,
-                            B can only block one of them, B wins on the following turn
-                            A wins in 3 moves after fast forward (ff-ABA)         
-                            """
-                            value = round(a_win_value / 10 ** (3 + fast_forward_counter))
-
-                        """Fast forwarded out of sync, need to swap A and B"""
-                        a_sign, b_sign = b_sign, a_sign
-                        a_value, b_value = b_value, a_value
-                        a_win_value, b_win_value = b_win_value, a_win_value
-                        a_wins_next_next_turn, b_wins_next_next_turn = b_wins_next_next_turn, a_wins_next_next_turn
-                        a_wins_next_next_next_turn, b_wins_next_next_next_turn = (
-                            b_wins_next_next_next_turn, a_wins_next_next_next_turn)
-                        a_k_minus_1_threats, b_k_minus_1_threats = b_k_minus_1_threats, a_k_minus_1_threats
-                        a_k_minus_2_threats, b_k_minus_2_threats = b_k_minus_2_threats, a_k_minus_2_threats
-
-                        break
+                    """Swap A and B"""
+                    a_piece, b_piece = b_piece, a_piece
+                    a_sign, b_sign = b_sign, a_sign
+                    a_value, b_value = b_value, a_value
+                    a_wins, b_wins = b_wins, a_wins
+                    a_win_next_turn_threats, b_win_next_turn_threats = b_win_next_turn_threats, a_win_next_turn_threats
+                    a_win_next_next_turn_threats, b_win_next_next_turn_threats = (
+                        b_win_next_next_turn_threats, a_win_next_next_turn_threats)
+                    a_win_next_next_next_turn_threats, b_win_next_next_next_turn_threats = (
+                        b_win_next_next_next_turn_threats, a_win_next_next_next_turn_threats)
+                    a_k_minus_1_threats, b_k_minus_1_threats = b_k_minus_1_threats, a_k_minus_1_threats
+                    a_k_minus_2_threats, b_k_minus_2_threats = b_k_minus_2_threats, a_k_minus_2_threats
+                    a_overlapping_k_minus_2_threats, b_overlapping_k_minus_2_threats = (
+                        b_overlapping_k_minus_2_threats, a_overlapping_k_minus_2_threats)
+                    a_win_value, b_win_value = b_win_value, a_win_value
 
                 else:
-                    if len(b_wins_next_turn) > 1:
+                    if len(b_win_next_turn_threats) > 1:
                         """
                         B has multiple wins on their next turn,
                         A can only block one of them, B wins on the following turn
@@ -964,11 +653,11 @@ class MinimaxAgent(agent.Agent):
             At this point:
                 len(a_wins) = 0
                 len(b_wins) = 0
-                len(a_wins_next_turn) = 0
-                len(b_wins_next_turn) = 0
+                len(a_win_next_turn_threats) = 0
+                len(b_win_next_turn_threats) = 0
             """
 
-            if value == 0 and len(a_wins_next_next_turn) >= 1:
+            if value == 0 and len(a_win_next_next_turn_threats) >= 1:
                 """
                 A can play a piece such that they have multiple wins on their next turn,
                 B can only block one of them, A wins on the following turn
@@ -980,17 +669,17 @@ class MinimaxAgent(agent.Agent):
             At this point:
                 len(a_wins) = 0
                 len(b_wins) = 0
-                len(a_wins_next_turn) = 0
-                len(b_wins_next_turn) = 0
-                len(a_wins_next_next_turn) = 0
+                len(a_win_next_turn_threats) = 0
+                len(b_win_next_turn_threats) = 0
+                len(a_win_next_next_turn_threats) = 0
             """
 
-            if value == 0 and len(b_wins_next_next_turn) >= 1 and len(a_k_minus_1_threats) == 0:
+            if value == 0 and len(b_win_next_next_turn_threats) >= 1 and len(a_k_minus_1_threats) == 0:
                 found_win = False
-                for w1 in b_wins_next_next_turn:
+                for w1 in b_win_next_next_turn_threats:
                     if found_win:
                         break
-                    for w2 in b_wins_next_next_turn.difference({w1}):
+                    for w2 in b_win_next_next_turn_threats.difference({w1}):
                         if w1[0] != w2[0] and w1[0] not in w2[1] and w2[0] not in w1[1] and set(w1[1]).isdisjoint(
                                 set(w2[1])):
                             found_win = True
@@ -1003,7 +692,7 @@ class MinimaxAgent(agent.Agent):
                     """
                     value = round(b_win_value / 10 ** (5 + fast_forward_counter))
 
-            if value == 0 and len(a_wins_next_next_next_turn) >= 1:
+            if value == 0 and len(a_win_next_next_next_turn_threats) >= 1:
                 found_win = False
                 if len(b_k_minus_1_threats) == 0:
                     found_win = True
@@ -1015,7 +704,7 @@ class MinimaxAgent(agent.Agent):
                     for t1 in a_k_minus_1_threats:
                         if found_win:
                             break
-                        for w1 in a_wins_next_next_next_turn:
+                        for w1 in a_win_next_next_next_turn_threats:
                             if found_win:
                                 break
                             if w1[0] in t1 or (t1[0] == w1[1][0][0] or (len(w1[1]) == 2 and t1[1] == w1[1][1][0])):
@@ -1035,14 +724,14 @@ class MinimaxAgent(agent.Agent):
                     """
                     value = round(a_win_value / 10 ** (6 + fast_forward_counter))
 
-            if value == 0 and len(b_wins_next_next_next_turn) >= 1 and len(a_k_minus_1_threats) == 0:
+            if value == 0 and len(b_win_next_next_next_turn_threats) >= 1 and len(a_k_minus_1_threats) == 0:
 
                 found_win = False
 
-                for w1 in b_wins_next_next_turn:
+                for w1 in b_win_next_next_turn_threats:
                     if found_win:
                         break
-                    for w2 in b_wins_next_next_next_turn:
+                    for w2 in b_win_next_next_next_turn_threats:
                         if found_win:
                             break
                         w2_squares = {w2[1][0][0]}.union(w2[1][0][1])
@@ -1055,27 +744,19 @@ class MinimaxAgent(agent.Agent):
                                 if w1[0] in t1 or not set(w1[1]).isdisjoint(t1):
                                     found_win = False
 
-                if not found_win and len(b_wins_next_next_next_turn) >= 2:
+                if not found_win and len(b_win_next_next_next_turn_threats) >= 2:
                     completed = set()
-                    for w1 in b_wins_next_next_next_turn:
+                    for w1 in b_win_next_next_next_turn_threats:
                         completed.add(w1)
                         if found_win:
                             break
-                        for w2 in b_wins_next_next_next_turn.difference(completed):
+                        for w2 in b_win_next_next_next_turn_threats.difference(completed):
                             if found_win:
                                 break
 
-                            w1_squares = {w1[1][0][0]}.union(w1[1][0][1])
-                            if len(w1[1][0]) == 3:
-                                w1_squares.update(w1[1][0][2])
-                            if len(w1[1]) == 2:
-                                w1_squares.update({w1[1][1][0]}.union(w1[1][1][1]))
+                            w1_squares = get_squares_from_threat(w1)
 
-                            w2_squares = {w2[1][0][0]}.union(w2[1][0][1])
-                            if len(w2[1][0]) == 3:
-                                w2_squares.update(w2[1][0][2])
-                            if len(w2[1]) == 2:
-                                w2_squares.update({w2[1][1][0]}.union(w2[1][1][1]))
+                            w2_squares = get_squares_from_threat(w2)
 
                             if (len(w1[1]) == 2 or len(w2[1]) == 2) and len(a_k_minus_2_threats) != 0:
                                 break
@@ -1102,8 +783,8 @@ class MinimaxAgent(agent.Agent):
     def print_board(self, state, best_move):
         h = state.h
         w = state.w
-        print("   " + " " * (4 * best_move[1]) + " v " + " " * (4 * (w - best_move[1] - 1) - 1) + "  ")
-        print("  +" + "-" * (4 * best_move[1]) + " ! " + "-" * (4 * (w - best_move[1] - 1) - 1) + "-+")
+        print("   " + " " * (4 * best_move[1]) + " v " + " " * (4 * (w - best_move[1] - 1)) + "  ")
+        print("  +" + "-" * (4 * best_move[1]) + " ! " + "-" * (4 * (w - best_move[1] - 1)) + "+")
         for i in range(w):
             row_string = "  "
             if i == best_move[0]:
@@ -1121,6 +802,6 @@ class MinimaxAgent(agent.Agent):
             else:
                 row_string += "|"
             print(row_string)
-        print("  +" + "-" * (4 * best_move[1]) + " ! " + "-" * (4 * (w - best_move[1] - 1) - 1) + "-+")
-        print("   " + " " * (4 * best_move[1]) + " ^ " + " " * (4 * (w - best_move[1] - 1) - 1) + "  ")
+        print("  +" + "-" * (4 * best_move[1]) + " ! " + "-" * (4 * (w - best_move[1] - 1)) + "+")
+        print("   " + " " * (4 * best_move[1]) + " ^ " + " " * (4 * (w - best_move[1] - 1)) + "  ")
         print(state.next_player + " to play next")
