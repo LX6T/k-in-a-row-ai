@@ -124,4 +124,4 @@ if __name__ == '__main__':
 
     print(a1.static_eval(s))
 
-    r.run_game(s, time_limit=1.0, silent=False, transcript_name="out")
+    r.run_game(s, time_limit=1.0, silent=True, transcript_name="out")
