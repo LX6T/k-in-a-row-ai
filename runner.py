@@ -107,21 +107,27 @@ if __name__ == '__main__':
     """
     import minimax_agent
 
+    """Various starting board configurations"""
     s = game.GameState.empty((11, 11), 6)
     # s = game.GameState.no_corners()
     # s = game.GameState.no_corners_small()
     # s = game.GameState.tic_tac_toe()
+
+    """Initialise agents and game runner"""
     a1 = minimax_agent.MinimaxAgent(s, game.X_PIECE)
     a2 = minimax_agent.MinimaxAgent(s, game.O_PIECE)
     r = GameRunner(x_agent=a1, o_agent=a2)
 
+    """
+    Pre-moves a certain number of times for a unique starting board configuration.
+    Comment out this code for a blank board.
+    """
     for i in range(50):
         while not s.is_valid_move(move := (random.randint(0, s.w - 1), random.randint(0, s.h - 1))):
             pass
         s = s.make_move(move)
 
-    print(s)
-
-    print(a1.static_eval(s))
+    # print(s)
+    # print(a1.static_eval(s))
 
     r.run_game(s, time_limit=1.0, silent=True, transcript_name="out")
