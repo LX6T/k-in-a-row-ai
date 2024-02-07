@@ -51,12 +51,11 @@ def detect_threats(k_minus_1_threats, k_minus_2_threats, overlapping_k_minus_2_t
                 win_next_turn_threats = tuple(set(t1).symmetric_difference(set(t2)))
                 win_next_next_turn_threats.add((overlapping_square, win_next_turn_threats))
 
+    """
+    Record places where two parallel k-2 threats can be created on the same turn
+    """
     completed = set()
     for t1 in k_minus_2_threats:
-
-        """
-        Record places where two k-2 threats can be created on the same turn
-        """
         completed.add(t1)
         for t2 in k_minus_2_threats.difference(completed):
             intersection = set(t1).intersection(set(t2))
@@ -65,30 +64,11 @@ def detect_threats(k_minus_1_threats, k_minus_2_threats, overlapping_k_minus_2_t
                 edge_squares = tuple(set(t1).symmetric_difference(set(t2)))
                 overlapping_k_minus_2_threats.add((overlapping_squares, edge_squares))
 
-        """
-        Record places where two k-1 threats can be created on the same turn
-        """
-        completed_threats = set()
-        for t2 in k_minus_1_threats:
-            completed_threats.add(t2)
-            for t3 in k_minus_1_threats.difference(completed_threats):
-                intersection_a = set(t1).intersection(t2)
-                intersection_b = set(t1).intersection(t3)
-                if len(intersection_a) == 1 and len(intersection_b) == 1 and intersection_a.isdisjoint(
-                        intersection_b):
-                    overlapping_square_a = intersection_a.pop()
-                    overlapping_square_b = intersection_b.pop()
-                    win_next_turn = tuple(set(t1).difference({overlapping_square_a, overlapping_square_b}))
-                    win_next_next_turn_threats_a = tuple({(overlapping_square_b, win_next_turn)})
-                    win_next_next_turn_threats_b = tuple({(overlapping_square_a, win_next_turn)})
-                    win_next_next_next_turn_threats.add((overlapping_square_a, win_next_next_turn_threats_a))
-                    win_next_next_next_turn_threats.add((overlapping_square_b, win_next_next_turn_threats_b))
-
     completed = set()
     for t1 in overlapping_k_minus_2_threats:
 
         """
-        Record places where four k-2 threats can be created on the same turn
+        Record places where two sets of two parallel k-2 threats can be created on the same turn
         """
         completed.add(t1)
         for t2 in overlapping_k_minus_2_threats.difference(completed):
@@ -104,7 +84,7 @@ def detect_threats(k_minus_1_threats, k_minus_2_threats, overlapping_k_minus_2_t
                 win_next_next_next_turn_threats.add((overlapping_square, win_next_next_turn_threats))
 
         """
-        Record places where two k-2 threats and a k-1 threat can be created on the same turn
+        Record places where two parallel k-2 threats and a k-1 threat can be created on the same turn
         """
         for t2 in k_minus_1_threats:
             intersection = set(t1[0]).intersection(t2)
@@ -889,12 +869,12 @@ class MinimaxAgent(agent.Agent):
         """
         h = state.h
         w = state.w
-        print("   " + " " * (4 * best_move[1]) + " v " + " " * (4 * (w - best_move[1] - 1)) + "  ")
+        print("   " + " " * (4 * best_move[1]) + " v " + " " * (4 * (w - best_move[1] - 1)) + " ")
         print("  +" + "-" * (4 * best_move[1]) + " ! " + "-" * (4 * (w - best_move[1] - 1)) + "+")
         for i in range(w):
             row_string = "  "
             if i == best_move[0]:
-                row_string = ">- "
+                row_string = ">--"
             for j in range(h):
                 if not (j == 0 and i == best_move[0]):
                     row_string += "|"
@@ -904,10 +884,9 @@ class MinimaxAgent(agent.Agent):
                     centre_piece = state.board[i][j]
                     row_string += " " + centre_piece + " "
             if i == best_move[0]:
-                row_string += " -<"
+                row_string += "--<"
             else:
                 row_string += "|"
             print(row_string)
         print("  +" + "-" * (4 * best_move[1]) + " ! " + "-" * (4 * (w - best_move[1] - 1)) + "+")
-        print("   " + " " * (4 * best_move[1]) + " ^ " + " " * (4 * (w - best_move[1] - 1)) + "  ")
-        print(state.next_player + " to play next")
+        print("   " + " " * (4 * best_move[1]) + " ^ " + " " * (4 * (w - best_move[1] - 1)) + " ")
