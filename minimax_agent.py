@@ -717,7 +717,7 @@ class MinimaxAgent(agent.Agent):
                     |   |   |   | B |   |   |  -->  |   |   |   | B |   |   |  -->  |   |   |   | B |   |   |
                     |   |   |   |   |   |   |       |   |   |   |   |   |   |       |   |   |   |[B]|   |   |
                     |   |   |   |   |   |   |       |   |   |   |   |   |   |       |   |   |   |   |   |   |
-                    
+                       (B has just played)
                                                     |   |   |   |   |   |   |       |   |   |   |[B]|   |   |
                                                     |   | B | B | B | X |   |       |   | B | B | B | X |   |
                                                -->  |   |   |   | B |   |   |  -->  |   |   |   | B |   |   |
@@ -766,7 +766,7 @@ class MinimaxAgent(agent.Agent):
                     |   |   | A |   |   |   |  -->  |   |   | A |   |   |   |  -->  |   |   | A |   |   |   |
                     |   |   | A | A |   |   |       |   |[A]| A | A |   |   |       |   | A | A | A |   |   |
                     |   |   |   |   |   |   |       |   |   |   |   |   |   |       |   |   |   |   |   |   |
-                    
+                       (B has just played)
                                                     |   | A | A | A | B |   |       |   | A | A | A | B |   |
                                                     |   |   |   |   | B |   |       |   |   |   |   | B |   |
                                                -->  |   |   |   | A |   |   |  -->  |   |   |   | A |   |   |
@@ -794,9 +794,7 @@ class MinimaxAgent(agent.Agent):
                     for w2 in b_win_next_next_next_turn_threats:
                         if found_win:
                             break
-                        w2_squares = {w2[1][0][0]}.union(w2[1][0][1])
-                        if len(w2[1]) == 2:
-                            w2_squares.update({w2[1][1][0]}.union(w2[1][1][1]))
+                        w2_squares = get_squares_from_threat(w2)
                         if w1[0] != w2[0] and w1[0] not in w2_squares and w2[0] not in w1[1] and set(w1[1]).isdisjoint(
                                 w2_squares):
                             found_win = True
@@ -813,11 +811,8 @@ class MinimaxAgent(agent.Agent):
                         for w2 in b_win_next_next_next_turn_threats.difference(completed):
                             if found_win:
                                 break
-
                             w1_squares = get_squares_from_threat(w1)
-
                             w2_squares = get_squares_from_threat(w2)
-
                             if (len(w1[1]) == 2 or len(w2[1]) == 2) and len(a_k_minus_2_threats) != 0:
                                 break
                             if (w1[0] != w2[0] and
@@ -840,7 +835,7 @@ class MinimaxAgent(agent.Agent):
                     |   | B |   |   | B |   |  -->  |   | B |   |   | B |   |  -->  |   | B |   |   | B |   |
                     |   |   | B | B |   |   |       |   |   | B | B |   |   |       |   |[B]| B | B |   |   |
                     |   |   |   |   |   |   |       |   |   |   |   |   |   |       |   |   |   |   |   |   |
-                    
+                       (B has just played)
                                                     |   |   |   |   |   |   |       |   |   |   |   |   |   |
                                                     |   |   | B | B | A |   |       |   |[B]| B | B | A |   |
                                                -->  |   | B |   |   | B |   |  -->  |   | B |   |   | B |   |
