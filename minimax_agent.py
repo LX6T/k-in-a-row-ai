@@ -11,21 +11,36 @@ import random
 
 def process_count(k, last_free_squares, count, value, wins,
                   win_next_turn_threats, k_minus_1_threats, k_minus_2_threats):
+    """
+    Update the total value and record any k-rows close to being filled
+    """
+
+    """An unblocked k-row filled with x squares counts for 10^(x-1) value"""
     value += 10.0 ** (count - 1)
     if count == k:
+        """k out of k squares are filled, game over"""
         wins += 1
     elif count == k - 1 and k >= 2:
+        """k-1 out of k squares are filled, player can win next turn"""
         win_next_turn_threats.add(last_free_squares[0])
     elif count == k - 2 and k >= 3:
+        """k-2 out of k squares are filled, player can fill to k-1 next turn"""
         k_minus_1_threats.add((last_free_squares[0], last_free_squares[1]))
     elif count == k - 3 and k >= 4:
-        k_minus_2_threats.add(
-            (last_free_squares[0], last_free_squares[1], last_free_squares[2]))
+        """k-3 out of k squares are filled, player can fill to k-2 next turn"""
+        k_minus_2_threats.add((last_free_squares[0], last_free_squares[1], last_free_squares[2]))
     return value, wins
 
 
 def detect_threats(k_minus_1_threats, k_minus_2_threats, overlapping_k_minus_2_threats,
                    win_next_next_turn_threats, win_next_next_next_turn_threats):
+    """
+    See if any existing threats overlap to form win threats
+    """
+
+    """
+    Record places where two win threats can be created on the same turn
+    """
     completed = set()
     for t1 in k_minus_1_threats:
         completed.add(t1)
@@ -38,6 +53,10 @@ def detect_threats(k_minus_1_threats, k_minus_2_threats, overlapping_k_minus_2_t
 
     completed = set()
     for t1 in k_minus_2_threats:
+
+        """
+        Record places where two k-2 threats can be created on the same turn
+        """
         completed.add(t1)
         for t2 in k_minus_2_threats.difference(completed):
             intersection = set(t1).intersection(set(t2))
@@ -45,6 +64,10 @@ def detect_threats(k_minus_1_threats, k_minus_2_threats, overlapping_k_minus_2_t
                 overlapping_squares = tuple(intersection)
                 edge_squares = tuple(set(t1).symmetric_difference(set(t2)))
                 overlapping_k_minus_2_threats.add((overlapping_squares, edge_squares))
+
+        """
+        Record places where two k-1 threats can be created on the same turn
+        """
         completed_threats = set()
         for t2 in k_minus_1_threats:
             completed_threats.add(t2)
@@ -63,6 +86,10 @@ def detect_threats(k_minus_1_threats, k_minus_2_threats, overlapping_k_minus_2_t
 
     completed = set()
     for t1 in overlapping_k_minus_2_threats:
+
+        """
+        Record places where four k-2 threats can be created on the same turn
+        """
         completed.add(t1)
         for t2 in overlapping_k_minus_2_threats.difference(completed):
             intersection = set(t1[0]).intersection(t2[0])
@@ -75,6 +102,10 @@ def detect_threats(k_minus_1_threats, k_minus_2_threats, overlapping_k_minus_2_t
                 win_next_next_turn_threats = tuple(
                     {(overlapping_square_a, win_next_turn_threats_a), (overlapping_square_b, win_next_turn_threats_b)})
                 win_next_next_next_turn_threats.add((overlapping_square, win_next_next_turn_threats))
+
+        """
+        Record places where two k-2 threats and a k-1 threat can be created on the same turn
+        """
         for t2 in k_minus_1_threats:
             intersection = set(t1[0]).intersection(t2)
             if len(intersection) == 1:
@@ -88,49 +119,98 @@ def detect_threats(k_minus_1_threats, k_minus_2_threats, overlapping_k_minus_2_t
                     win_next_next_next_turn_threats.add((overlapping_square, win_next_next_turn_threats))
 
 
-def block_threats(blocking_square, k_minus_1_threats, k_minus_2_threats, win_next_turn_threats,
-                  win_next_next_turn_threats, win_next_next_next_turn_threats):
+def update_threats(blocking_square, k_minus_1_threats, k_minus_2_threats, win_next_turn_threats,
+                   win_next_next_turn_threats, win_next_next_next_turn_threats):
+    """
+    Record any new threats resulting from blocking a win
+    """
 
-    k_minus_1_threats_revised = k_minus_1_threats.copy()
+    tagged_for_removal = set()
     for t1 in k_minus_1_threats:
         if blocking_square in t1:
             win_next_turn_threats.update(set(t1).difference({blocking_square}))
-            k_minus_1_threats_revised.remove(t1)
-    k_minus_1_threats = k_minus_1_threats_revised
+            tagged_for_removal.add(t1)
+    k_minus_1_threats.difference_update(tagged_for_removal)
 
-    win_next_next_turn_threats_revised = win_next_next_turn_threats.copy()
+    tagged_for_removal = set()
     for w1 in win_next_next_turn_threats:
         if blocking_square == w1[0]:
             win_next_turn_threats.update(w1[1])
-            win_next_next_turn_threats_revised.remove(w1)
+            tagged_for_removal.add(w1)
         else:
             for w2 in w1[1]:
                 if blocking_square == w2:
                     win_next_turn_threats.add(w1[0])
-                    win_next_next_turn_threats_revised.remove(w1)
-    win_next_next_turn_threats = win_next_next_turn_threats_revised
+                    tagged_for_removal.add(w1)
+    win_next_next_turn_threats.difference_update(tagged_for_removal)
 
-    k_minus_2_threats_revised = k_minus_2_threats.copy()
+    tagged_for_removal = set()
     for t1 in k_minus_2_threats:
         if blocking_square in t1:
             k_minus_1_threats.add(tuple(set(t1).difference({blocking_square})))
-            k_minus_2_threats_revised.remove(t1)
-    k_minus_2_threats = k_minus_2_threats_revised
+            tagged_for_removal.add(t1)
+    k_minus_2_threats.difference_update(tagged_for_removal)
 
-    win_next_next_next_turn_threats_revised = win_next_next_next_turn_threats.copy()
+    tagged_for_removal = set()
     for w1 in win_next_next_next_turn_threats:
         if blocking_square == w1[0]:
             win_next_next_turn_threats.update(w1[1])
-            win_next_next_next_turn_threats_revised.remove(w1)
+            tagged_for_removal.add(w1)
         else:
             for w2 in w1[1]:
                 if blocking_square == w2[0]:
                     win_next_next_turn_threats.add(w2)
-                    win_next_next_next_turn_threats_revised.remove(w1)
-    win_next_next_next_turn_threats = win_next_next_next_turn_threats_revised
+                    tagged_for_removal.add(w1)
+    win_next_next_next_turn_threats.difference_update(tagged_for_removal)
+
+
+def block_threats(blocking_square, k_minus_1_threats, k_minus_2_threats, win_next_turn_threats,
+                  win_next_next_turn_threats, win_next_next_next_turn_threats):
+    """
+    If blocking a win also blocks any other threats, remove them from storage.
+    """
+
+    tagged_for_removal = set()
+    for t1 in k_minus_1_threats:
+        if blocking_square in t1:
+            tagged_for_removal.add(t1)
+    k_minus_1_threats.difference_update(tagged_for_removal)
+
+    tagged_for_removal = set()
+    for w1 in win_next_next_turn_threats:
+        if blocking_square == w1[0] or blocking_square in w1[1]:
+            tagged_for_removal.add(w1)
+    win_next_next_turn_threats.difference_update(tagged_for_removal)
+
+    tagged_for_removal = set()
+    for t1 in k_minus_2_threats:
+        if blocking_square in t1:
+            tagged_for_removal.add(t1)
+    k_minus_2_threats.difference_update(tagged_for_removal)
+
+    tagged_for_removal = set()
+    for t1 in k_minus_2_threats:
+        if blocking_square in t1[0] or blocking_square in t1[1]:
+            tagged_for_removal.add(t1)
+    k_minus_2_threats.difference_update(tagged_for_removal)
+
+    tagged_for_removal = set()
+    for w1 in win_next_next_next_turn_threats:
+        if blocking_square == w1[0]:
+            tagged_for_removal.add(w1)
+        else:
+            for w2 in w1[1]:
+                if blocking_square == w2[0] or blocking_square in w2[1] or (
+                        len(w2) == 3 and blocking_square in w2[2]):
+                    tagged_for_removal.add(w1)
+                    break
+    win_next_next_next_turn_threats.difference_update(tagged_for_removal)
 
 
 def get_squares_from_threat(threat):
+    """
+    Helper method to deconstruct an element of win_next_next_next_turn_threats
+    """
     squares = {threat[1][0][0]}.union(threat[1][0][1])
     if len(threat[1][0]) == 3:
         squares.update(threat[1][0][2])
@@ -371,6 +451,7 @@ class MinimaxAgent(agent.Agent):
 
         value = 0
         win_value = 10.0 ** (k + 21)
+
         a_piece = state.next_player
         b_piece = game.O_PIECE if a_piece == game.X_PIECE else game.X_PIECE
         a_sign = 1 if a_piece == game.X_PIECE else -1
@@ -451,18 +532,6 @@ class MinimaxAgent(agent.Agent):
                             b_blocked = True
                             break
 
-                    """
-                    Unblocked z-filled-in-a-row counts for 10^z value
-                    Each k-filled-in-a-row = win
-                    Each (k-1)-filled-in-a-k-row = potential win next turn on remaining square
-                    Each (k-2)-filled-in-a-k-row can become a (k-1)-filled-in-a-k-row next turn
-                    Each (k-2)-filled-in-a-(k-1)-row with space on both sides = potential win next next turn
-                    Each (k-2)-filled-in-a-(k-1)-row with no space both sides = 
-                        can overlap with another for potential win next next turn
-                    Each (k-3)-filled-in-a-k-row can become a (k-2)-filled-in-a-k-row next turn
-                    Each (k-3)-filled-in-a-(k-2)-row with space on both sides = potential win next next next turn
-                    """
-
                     if a_count > 0 and not a_blocked:
                         a_value, a_wins = process_count(k, last_free_squares, a_count, a_value, a_wins,
                                                         a_win_next_turn_threats, a_k_minus_1_threats,
@@ -521,7 +590,7 @@ class MinimaxAgent(agent.Agent):
                 len(b_win_next_turn_threats) <= 1
             """
 
-            """Fast forward through any series of forced moves"""
+            """Fast forward through any series of forced moves (ff)"""
             fast_forward_counter = 0
             while True:
                 if len(b_win_next_turn_threats) == 1:
@@ -529,12 +598,10 @@ class MinimaxAgent(agent.Agent):
                     state = state.make_move(blocking_square)
                     fast_forward_counter += 1
 
-                    block_threats(blocking_square, a_k_minus_1_threats, a_k_minus_2_threats, a_win_next_turn_threats,
-                                  a_win_next_next_turn_threats, a_win_next_next_next_turn_threats)
-
-                    detect_threats(a_k_minus_1_threats, a_k_minus_2_threats, a_overlapping_k_minus_2_threats,
+                    update_threats(blocking_square, a_k_minus_1_threats, a_k_minus_2_threats, a_win_next_turn_threats,
                                    a_win_next_next_turn_threats, a_win_next_next_next_turn_threats)
 
+                    """Search in the vicinity of the blocking square for new threats and any updates to the value"""
                     for (x, y) in directions:
                         for scan in range(1 - k, 1):
                             i = blocking_square[0] + scan * y
@@ -583,46 +650,18 @@ class MinimaxAgent(agent.Agent):
                                                                 a_win_next_turn_threats, a_k_minus_1_threats,
                                                                 a_k_minus_2_threats)
 
-                    b_k_minus_1_threats_revised = b_k_minus_1_threats.copy()
-                    for t1 in b_k_minus_1_threats:
-                        if blocking_square in t1:
-                            b_k_minus_1_threats_revised.remove(t1)
-                    b_k_minus_1_threats = b_k_minus_1_threats_revised
+                    detect_threats(a_k_minus_1_threats, a_k_minus_2_threats, a_overlapping_k_minus_2_threats,
+                                   a_win_next_next_turn_threats, a_win_next_next_next_turn_threats)
 
-                    b_win_next_next_turn_threats_revised = b_win_next_next_turn_threats.copy()
-                    for w1 in b_win_next_next_turn_threats:
-                        if blocking_square == w1[0] or blocking_square in w1[1]:
-                            b_win_next_next_turn_threats_revised.remove(w1)
-                    b_win_next_next_turn_threats = b_win_next_next_turn_threats_revised
-
-                    b_k_minus_2_threats_revised = b_k_minus_2_threats.copy()
-                    for t1 in b_k_minus_2_threats:
-                        if blocking_square in t1:
-                            b_k_minus_2_threats_revised.remove(t1)
-                    b_k_minus_2_threats = b_k_minus_2_threats_revised
-
-                    b_k_minus_2_threats_revised = b_k_minus_2_threats.copy()
-                    for t1 in b_k_minus_2_threats:
-                        if blocking_square in t1[0] or blocking_square in t1[1]:
-                            b_k_minus_2_threats_revised.remove(t1)
-                    b_k_minus_2_threats = b_k_minus_2_threats_revised
-
-                    b_win_next_next_next_turn_threats_revised = b_win_next_next_next_turn_threats.copy()
-                    for w1 in b_win_next_next_next_turn_threats:
-                        if blocking_square == w1[0]:
-                            b_win_next_next_next_turn_threats_revised.remove(w1)
-                        else:
-                            for w2 in w1[1]:
-                                if blocking_square == w2[0] or blocking_square in w2[1] or (
-                                        len(w2) == 3 and blocking_square in w2[2]):
-                                    b_win_next_next_next_turn_threats_revised.remove(w1)
-                                    break
-                    b_win_next_next_next_turn_threats = b_win_next_next_next_turn_threats_revised
+                    block_threats(blocking_square, b_k_minus_1_threats, b_k_minus_2_threats, b_win_next_turn_threats,
+                                  b_win_next_next_turn_threats, b_win_next_next_next_turn_threats)
 
                     a_win_value = a_sign * win_value * (1 + a_value / 10 ** k)
                     b_win_value = b_sign * win_value * (1 + b_value / 10 ** k)
 
-                    """Swap A and B"""
+                    """
+                    Swap A and B; B has just played, A to play next
+                    """
                     a_piece, b_piece = b_piece, a_piece
                     a_sign, b_sign = b_sign, a_sign
                     a_value, b_value = b_value, a_value
@@ -689,6 +728,23 @@ class MinimaxAgent(agent.Agent):
                     B can play a piece such that they have multiple wins on their next next turn,
                     A cannot block all of them, B wins in the end
                     B wins in 5 moves after fast forward (ff-BABAB)
+                    
+                    Example:
+                    
+                    |   |   |   |   |   |   |       |   |   |   |   |   |   |       |   |   |   |   |   |   |
+                    |   | B | B |[B]|   |   |       |   | B | B | B |[X]|   |       |   | B | B | B | X |   |
+                    |   |   |   | B |   |   |  -->  |   |   |   | B |   |   |  -->  |   |   |   | B |   |   |
+                    |   |   |   | B |   |   |  -->  |   |   |   | B |   |   |  -->  |   |   |   | B |   |   |
+                    |   |   |   |   |   |   |       |   |   |   |   |   |   |       |   |   |   |[B]|   |   |
+                    |   |   |   |   |   |   |       |   |   |   |   |   |   |       |   |   |   |   |   |   |
+                    
+                                                    |   |   |   |   |   |   |       |   |   |   |[B]|   |   |
+                                                    |   | B | B | B | X |   |       |   | B | B | B | X |   |
+                                               -->  |   |   |   | B |   |   |  -->  |   |   |   | B |   |   |
+                                               -->  |   |   |   | B |   |   |  -->  |   |   |   | B |   |   |
+                                                    |   |   |   | B |   |   |       |   |   |   | B |   |   |
+                                                    |   |   |   |[X]|   |   |       |   |   |   | X |   |   |
+                    
                     """
                     value = round(b_win_value / 10 ** (5 + fast_forward_counter))
 
@@ -721,6 +777,30 @@ class MinimaxAgent(agent.Agent):
                     A can play a piece such that they have multiple wins on their next next turn,
                     B cannot block all of them, A wins in the end
                     A wins in 6 moves after fast forward (ff-BABABA)
+                    
+                    Example:
+                    
+                    |   | A | A | A |[B]|   |       |   | A | A | A | B |   |       |   | A | A | A | B |   |
+                    |   |   |   |   |   |   |       |   |   |   |   |   |   |       |   |   |   |   |[B]|   |
+                    |   |   |   | A |   |   |  -->  |   |   |   | A |   |   |  -->  |   |   |   | A |   |   |
+                    |   |   | A |   |   |   |  -->  |   |   | A |   |   |   |  -->  |   |   | A |   |   |   |
+                    |   |   | A | A |   |   |       |   |[A]| A | A |   |   |       |   | A | A | A |   |   |
+                    |   |   |   |   |   |   |       |   |   |   |   |   |   |       |   |   |   |   |   |   |
+                    
+                                                    |   | A | A | A | B |   |       |   | A | A | A | B |   |
+                                                    |   |   |   |   | B |   |       |   |   |   |   | B |   |
+                                               -->  |   |   |   | A |   |   |  -->  |   |   |   | A |   |   |
+                                               -->  |   |   | A |   |   |   |  -->  |   |   | A |   |   |   |
+                                                    |   | A | A | A |[A]|   |       |[B]| A | A | A | A |   |
+                                                    |   |   |   |   |   |   |       |   |   |   |   |   |   |
+                                                    
+                                                    |   | A | A | A | B |   |
+                                                    |   |   |   |   | B |   |
+                                               -->  |   |   |   | A |   |   |
+                                               -->  |   |   | A |   |   |   |
+                                                    | B | A | A | A | A |[A]|
+                                                    |   |   |   |   |   |   |
+                    
                     """
                     value = round(a_win_value / 10 ** (6 + fast_forward_counter))
 
@@ -771,6 +851,29 @@ class MinimaxAgent(agent.Agent):
                     B can play a piece such that they have at least four wins on their next next turn,
                     A can only block two of them, B wins in the end
                     B wins in 7 moves after fast forward (ff-BABABAB)
+                    
+                    Example:
+                    
+                    |   |   |   |   |   |   |       |   |   |   |   |   |   |       |   |   |   |   |   |   |
+                    |   |   | B |[B]|   |   |       |   |   | B | B |[A]|   |       |   |   | B | B | A |   |
+                    |   | B |   |   | B |   |  -->  |   | B |   |   | B |   |  -->  |   | B |   |   | B |   |
+                    |   | B |   |   | B |   |  -->  |   | B |   |   | B |   |  -->  |   | B |   |   | B |   |
+                    |   |   | B | B |   |   |       |   |   | B | B |   |   |       |   |[B]| B | B |   |   |
+                    |   |   |   |   |   |   |       |   |   |   |   |   |   |       |   |   |   |   |   |   |
+                    
+                                                    |   |   |   |   |   |   |       |   |   |   |   |   |   |
+                                                    |   |   | B | B | A |   |       |   |[B]| B | B | A |   |
+                                               -->  |   | B |   |   | B |   |  -->  |   | B |   |   | B |   |
+                                               -->  |   | B |   |   | B |   |  -->  |   | B |   |   | B |   |
+                                                    |   | B | B | B |[A]|   |       |   | B | B | B | A |   |
+                                                    |   |   |   |   |   |   |       |   |   |   |   |   |   |
+                    
+                                                    |   |[A]|   |   |   |   |       |   | A |   |   |   |   |
+                                                    |   | B | B | B | A |   |       |   | B | B | B | A |   |
+                                               -->  |   | B |   |   | B |   |  -->  |   | B |   |   | B |   |
+                                               -->  |   | B |   |   | B |   |  -->  |   | B |   |   | B |   |
+                                                    |   | B | B | B | A |   |       |   | B | B | B | A |   |
+                                                    |   |   |   |   |   |   |       |   |[B]|   |   |   |   |
                     """
                     value = round(b_win_value / 10 ** (7 + fast_forward_counter))
 
@@ -781,6 +884,9 @@ class MinimaxAgent(agent.Agent):
         return value
 
     def print_board(self, state, best_move):
+        """
+        Prints the game board and indicates the last move played.
+        """
         h = state.h
         w = state.w
         print("   " + " " * (4 * best_move[1]) + " v " + " " * (4 * (w - best_move[1] - 1)) + "  ")
