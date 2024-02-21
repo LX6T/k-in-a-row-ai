@@ -43,7 +43,7 @@ class Agent:
         returns a short nickname for the agent
         :return: nickname
         """
-        return "random"
+        return "human_agent"
 
     @final
     def get_move(self, state: game.GameState, time_limit: float = None) -> (int, int):
@@ -75,8 +75,17 @@ class Agent:
         :param time_limit: time (in seconds) before you'll be cutoff and forfeit the game
         :return: move (x,y), remark
         """
-        while not state.is_valid_move(move := (random.randint(0, state.w - 1), random.randint(0, state.h - 1))):
-            pass
+
+        while True:
+            player_input = [int(i) for i in input("Enter your move: ").split()]
+            move = (player_input[0], player_input[1])
+            if state.is_valid_move(move):
+                break
+            else:
+                print("Invalid move")
+
+        self.print_board(state, move)
+
         return move
 
     def minimax(self, state: game.GameState, depth_remaining: int, time_limit: float,
@@ -104,3 +113,31 @@ class Agent:
         :return: evaluation of the state
         """
         return 0.0
+
+    def print_board(self, state, best_move):
+        """
+        Prints the game board and indicates the last move played.
+        """
+        h = state.h
+        w = state.w
+        print("   " + " " * (4 * best_move[1]) + " v " + " " * (4 * (w - best_move[1] - 1)) + " ")
+        print("  +" + "-" * (4 * best_move[1]) + " ! " + "-" * (4 * (w - best_move[1] - 1)) + "+")
+        for i in range(w):
+            row_string = "  "
+            if i == best_move[0]:
+                row_string = ">--"
+            for j in range(h):
+                if not (j == 0 and i == best_move[0]):
+                    row_string += "|"
+                if (i, j) == best_move:
+                    row_string += "[" + self.piece + "]"
+                else:
+                    centre_piece = state.board[i][j]
+                    row_string += " " + centre_piece + " "
+            if i == best_move[0]:
+                row_string += "--<"
+            else:
+                row_string += "|"
+            print(row_string)
+        print("  +" + "-" * (4 * best_move[1]) + " ! " + "-" * (4 * (w - best_move[1] - 1)) + "+")
+        print("   " + " " * (4 * best_move[1]) + " ^ " + " " * (4 * (w - best_move[1] - 1)) + " ")

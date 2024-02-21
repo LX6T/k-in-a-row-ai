@@ -13,6 +13,7 @@ import game
 import agent
 import transcript
 import random
+import sys
 
 
 class GameRunner:
@@ -107,14 +108,32 @@ if __name__ == '__main__':
     """
     import minimax_agent
 
+    if len(sys.argv) > 1:
+        rows = int(sys.argv[1])
+        cols = int(sys.argv[2])
+        k = int(sys.argv[3])
+        players = int(sys.argv[4])   # 0 or 1
+        time_limit = int(sys.argv[5]) if len(sys.argv) > 5 else None
+        auto_moves = int(sys.argv[6]) if len(sys.argv) > 6 else 0
+    else:
+        rows = 7
+        cols = 7
+        k = 5
+        players = 0
+        time_limit = 1.0
+        auto_moves = 0
+
     """Various starting board configurations"""
-    s = game.GameState.empty((11, 11), 6)
+    s = game.GameState.empty((rows, cols), k)
     # s = game.GameState.no_corners()
     # s = game.GameState.no_corners_small()
     # s = game.GameState.tic_tac_toe()
 
     """Initialise agents and game runner"""
-    a1 = minimax_agent.MinimaxAgent(s, game.X_PIECE)
+    if players == 1:
+        a1 = agent.Agent(s, game.X_PIECE)
+    else:
+        a1 = minimax_agent.MinimaxAgent(s, game.X_PIECE)
     a2 = minimax_agent.MinimaxAgent(s, game.O_PIECE)
     r = GameRunner(x_agent=a1, o_agent=a2)
 
@@ -122,7 +141,7 @@ if __name__ == '__main__':
     Pre-moves a certain number of times for a unique starting board configuration.
     Comment out this code for a blank board.
     """
-    for i in range(50):
+    for i in range(auto_moves):
         while not s.is_valid_move(move := (random.randint(0, s.w - 1), random.randint(0, s.h - 1))):
             pass
         s = s.make_move(move)
@@ -130,4 +149,4 @@ if __name__ == '__main__':
     # print(s)
     # print(a1.static_eval(s))
 
-    r.run_game(s, time_limit=1.0, silent=True, transcript_name="out")
+    r.run_game(s, time_limit=time_limit, silent=True, transcript_name="out")

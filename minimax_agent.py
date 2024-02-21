@@ -250,8 +250,8 @@ class MinimaxAgent(agent.Agent):
                 if state.board[i][j] == game.EMPTY_PIECE:
                     max_depth += 1
 
-        """Uncomment to limit the maximum search depth"""
-        # max_depth = min(max_depth, 3)
+        """Limit the maximum search depth to 3"""
+        max_depth = min(max_depth, 3)
 
         """Perform iterative deepening search until depth limit or time limit reached"""
         timeout = time.perf_counter() + time_limit if time_limit is not None else None
