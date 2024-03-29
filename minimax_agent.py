@@ -857,31 +857,3 @@ class MinimaxAgent(agent.Agent):
             value = round(a_sign * a_value + b_sign * b_value)
 
         return value
-
-    def print_board(self, state, best_move):
-        """
-        Prints the game board and indicates the last move played.
-        """
-        h = state.h
-        w = state.w
-        print("   " + " " * (4 * best_move[1]) + " v " + " " * (4 * (w - best_move[1] - 1)) + " ")
-        print("  +" + "-" * (4 * best_move[1]) + " ! " + "-" * (4 * (w - best_move[1] - 1)) + "+")
-        for i in range(w):
-            row_string = "  "
-            if i == best_move[0]:
-                row_string = ">--"
-            for j in range(h):
-                if not (j == 0 and i == best_move[0]):
-                    row_string += "|"
-                if (i, j) == best_move:
-                    row_string += "[" + self.piece + "]"
-                else:
-                    centre_piece = state.board[i][j]
-                    row_string += " " + centre_piece + " "
-            if i == best_move[0]:
-                row_string += "--<"
-            else:
-                row_string += "|"
-            print(row_string)
-        print("  +" + "-" * (4 * best_move[1]) + " ! " + "-" * (4 * (w - best_move[1] - 1)) + "+")
-        print("   " + " " * (4 * best_move[1]) + " ^ " + " " * (4 * (w - best_move[1] - 1)) + " ")
