@@ -8,12 +8,14 @@ Just run python3 runner.py or use whatever method you like to run this file.
 You probably should change the section at the bottom of this file for your own testing. Any changes you make will not be
 reflected in our grading, so you probably shouldn't change the GameRunner class.
 """
+import math
 
 import game
 import agent
 import transcript
 import random
 import sys
+import itertools
 
 
 class GameRunner:
@@ -62,13 +64,14 @@ class GameRunner:
             curr_agent = self.agents[state.next_player]
             piece = state.next_player
             try:
-                move = curr_agent.get_move(state, time_limit)
-                if not state.is_valid_move(move):
-                    raise ValueError
-                state = state.make_move(move)
-                t.print_move(curr_agent.nickname(), piece, move, state)
-                p(state)
-                p()
+                move, winner = curr_agent.get_move(state, time_limit)
+                break
+                # if not state.is_valid_move(move):
+                #     raise ValueError
+                # state = state.make_move(move)
+                # t.print_move(curr_agent.nickname(), piece, move, state)
+                # p(state)
+                # p()
             except TimeoutError:
                 print(f"player {curr_agent.nickname()} failed to return a move within the time limit")
                 t.runner_comment(f"player {curr_agent.nickname()} failed to return a move within the time limit")
@@ -85,16 +88,50 @@ class GameRunner:
                 winner = game.X_PIECE if piece == game.O_PIECE else game.O_PIECE
                 break
         if winner == "draw":
-            print("Game ends in a draw!")
+            # print("Game ends in a draw!")
             t.runner_comment("Game ends in a draw!")
         else:
-            print(f"Player {winner}, aka {self.agents[winner].nickname()} wins the game!")
+            # print(state)
+            # print(f"Player {winner}, aka {self.agents[winner].nickname()} wins the game!")
             t.runner_comment(f"Player {winner}, aka {self.agents[winner].nickname()} wins the game!")
 
         if transcript_name:
             t.generate(transcript_name, pdf=True)
 
         return winner
+
+
+def flip(config, rows, cols):
+    new_config = []
+    for i in range(len(config)):
+        move = config[i]
+        row = move // cols
+        col = move % cols
+        new_col = cols - 1 - col
+        new_config.append(row * cols + new_col)
+    return tuple(new_config)
+
+
+def rotate(config, rows, cols, angle):
+    new_config = []
+    for i in range(len(config)):
+        move = config[i]
+        row = move // cols
+        col = move % cols
+        if angle == 90:
+            new_row = col
+            new_col = cols - 1 - row
+        elif angle == 180:
+            new_row = rows - 1 - row
+            new_col = cols - 1 - col
+        elif angle == 270:
+            new_row = rows - 1 - col
+            new_col = row
+        else:
+            new_row = row
+            new_col = col
+        new_config.append(new_row * cols + new_col)
+    return tuple(new_config)
 
 
 if __name__ == '__main__':
@@ -112,41 +149,110 @@ if __name__ == '__main__':
         rows = int(sys.argv[1])
         cols = int(sys.argv[2])
         k = int(sys.argv[3])
-        players = int(sys.argv[4])   # 0 or 1
+        bonus = 0
+        players = int(sys.argv[4])  # 0 or 1
         time_limit = int(sys.argv[5]) if len(sys.argv) > 5 else None
         auto_moves = int(sys.argv[6]) if len(sys.argv) > 6 else 0
     else:
-        rows = 7
-        cols = 7
-        k = 5
+        rows = 3
+        # cols = 10
+        k = 3
+        # bonus = 1
         players = 0
-        time_limit = 1.0
+        time_limit = None
         auto_moves = 0
 
-    """Various starting board configurations"""
-    s = game.GameState.empty((rows, cols), k)
-    # s = game.GameState.no_corners()
-    # s = game.GameState.no_corners_small()
-    # s = game.GameState.tic_tac_toe()
+    for cols in range(6, 15):
+        results = ""
+        for bonus in range(-1, -cols - 1, -1):
+            area = rows * cols
+            squares = []
+            for i in range(area):
+                squares.append(i)
+            bonus_piece = game.X_PIECE
+            sign = '+'
+            if bonus < 0:
+                bonus_piece = game.O_PIECE
+                sign = '-'
+                bonus *= -1
+            configs = itertools.combinations(squares, bonus)
+            break_on_draw = False
+            break_on_win = False
 
-    """Initialise agents and game runner"""
-    if players == 1:
-        a1 = agent.Agent(s, game.X_PIECE)
-    else:
-        a1 = minimax_agent.MinimaxAgent(s, game.X_PIECE)
-    a2 = minimax_agent.MinimaxAgent(s, game.O_PIECE)
-    r = GameRunner(x_agent=a1, o_agent=a2)
+            x_wins = 0
+            draws = 0
+            o_wins = 0
 
-    """
-    Pre-moves a certain number of times for a unique starting board configuration.
-    Comment out this code for a blank board.
-    """
-    for i in range(auto_moves):
-        while not s.is_valid_move(move := (random.randint(0, s.w - 1), random.randint(0, s.h - 1))):
-            pass
-        s = s.make_move(move)
+            searched_configs = {}
 
-    # print(s)
-    # print(a1.static_eval(s))
+            for config in configs:
+                # print(config)
 
-    r.run_game(s, time_limit=time_limit, silent=True, transcript_name="out")
+                if tuple(sorted(config)) in searched_configs:
+                    winner = searched_configs[tuple(sorted(config))]
+                else:
+                    """Various starting board configurations"""
+                    s = game.GameState.empty((rows, cols), k)
+                    # s = game.GameState.no_corners()
+                    # s = game.GameState.no_corners_small()
+                    # s = game.GameState.tic_tac_toe()
+
+                    for move in config:
+                        row = move // cols
+                        col = move % cols
+                        s.overwrite((row, col), bonus_piece)
+
+                    """Initialise agents and game runner"""
+                    if players == 1:
+                        a1 = agent.Agent(s, game.X_PIECE)
+                    else:
+                        a1 = minimax_agent.MinimaxAgent(s, game.X_PIECE)
+                    a2 = minimax_agent.MinimaxAgent(s, game.O_PIECE)
+                    r = GameRunner(x_agent=a1, o_agent=a2)
+
+                    winner = r.run_game(s, time_limit=time_limit, silent=True)
+
+                    flipped_config = flip(config, rows, cols)
+
+                    configs_to_save = [winner,
+                                       rotate(config, rows, cols, 180),
+                                       flipped_config,
+                                       rotate(flipped_config, rows, cols, 180)]
+
+                    if rows == cols:
+                        configs_to_save.append(rotate(config, rows, cols, 90))
+                        configs_to_save.append(rotate(config, rows, cols, 270))
+                        configs_to_save.append(rotate(flipped_config, rows, cols, 90))
+                        configs_to_save.append(rotate(flipped_config, rows, cols, 270))
+
+                    for c in configs_to_save:
+                        searched_configs[tuple(sorted(c))] = winner
+
+                    # print(len(searched_configs) / math.comb(area, bonus))
+
+                print(config, winner)
+
+                if winner == game.X_PIECE:
+                    x_wins += 1
+                    if break_on_win:
+                        break
+                elif winner == game.O_PIECE:
+                    o_wins += 1
+                    if break_on_win:
+                        break
+                else:
+                    draws += 1
+                    if break_on_draw:
+                        break
+
+            outcome = ""
+            if x_wins > 0:
+                outcome = "X"
+            if o_wins > 0:
+                outcome += "O"
+            if draws > 0:
+                outcome += "D"
+            results += outcome + "\t"
+            if outcome == "O":
+                break
+        print(f"{rows}x{cols}:\t{results}")

@@ -66,6 +66,11 @@ class GameState:
         nstate = GameState(nboard, nplayer, self.k)
         return nstate
 
+    def overwrite(self, move: (int, int), piece):
+        nboard = [list(row) for row in self.board]
+        nboard[move[0]][move[1]] = piece
+        self.board = nboard
+
     def winner(self) -> [str, None]:
         """
         Determines if any agent has won the game.
