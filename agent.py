@@ -120,8 +120,8 @@ class Agent:
         """
         h = state.h
         w = state.w
-        print("   " + " " * (4 * best_move[1]) + " v " + " " * (4 * (w - best_move[1] - 1)) + " ")
-        print("  +" + "-" * (4 * best_move[1]) + " ! " + "-" * (4 * (w - best_move[1] - 1)) + "+")
+        print("   " + " " * (4 * best_move[1]) + " v " + " " * (4 * (h - best_move[1] - 1)) + " ")
+        print("  +" + "-" * (4 * best_move[1]) + " ! " + "-" * (4 * (h - best_move[1] - 1)) + "+")
         for i in range(w):
             row_string = "  "
             if i == best_move[0]:
@@ -139,5 +139,5 @@ class Agent:
             else:
                 row_string += "|"
             print(row_string)
-        print("  +" + "-" * (4 * best_move[1]) + " ! " + "-" * (4 * (w - best_move[1] - 1)) + "+")
-        print("   " + " " * (4 * best_move[1]) + " ^ " + " " * (4 * (w - best_move[1] - 1)) + " ")
+        print("  +" + "-" * (4 * best_move[1]) + " ! " + "-" * (4 * (h - best_move[1] - 1)) + "+")
+        print("   " + " " * (4 * best_move[1]) + " ^ " + " " * (4 * (h - best_move[1] - 1)) + " ")

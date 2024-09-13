@@ -204,7 +204,7 @@ class MinimaxAgent(agent.Agent):
         super().__init__(initial_state, piece)
         self.eval_calls = 0
         self.wrapup_time = 0.1
-        self.silent = True
+        self.silent = False
 
     def introduce(self):
         """
@@ -251,12 +251,11 @@ class MinimaxAgent(agent.Agent):
                     max_depth += 1
 
         """Limit the maximum search depth to 3"""
-        # max_depth = min(max_depth, 8)
+        max_depth = min(max_depth, 3)
 
         """Perform iterative deepening search until depth limit or time limit reached"""
         timeout = time.perf_counter() + time_limit if time_limit is not None else None
-        # depth = 1
-        depth = max_depth
+        depth = 1
         while depth <= max_depth:
 
             """Initialise Zobrist hash table"""
@@ -278,18 +277,14 @@ class MinimaxAgent(agent.Agent):
                 """Guaranteed to win, stop search"""
                 if (self.piece == game.X_PIECE and best_value >= 10 ** k or
                         self.piece == game.O_PIECE and best_value <= -10 ** k):
-                    winner = game.X_PIECE
                     if not self.silent:
                         print(f"Win found in {round(k + 20 - log10(abs(best_value))) + depth} moves")
                     break
                 elif (self.piece == game.X_PIECE and best_value <= -10 ** k or
                       self.piece == game.O_PIECE and best_value >= 10 ** k):
-                    winner = game.O_PIECE
                     if not self.silent:
                         print(f"Loss found in {round(k + 20 - log10(abs(best_value))) + depth} moves")
                     break
-                else:
-                    winner = "draw"
 
                 """Search again, one layer deeper"""
                 depth += 1
@@ -309,7 +304,7 @@ class MinimaxAgent(agent.Agent):
 
             self.print_board(state, best_move)
 
-        return best_move, winner
+        return best_move
 
     def minimax(self, state: game.GameState, depth_remaining: int, time_limit: float = None,
                 alpha: float = None, beta: float = None, z_hashing=None) -> ((int, int), float):
