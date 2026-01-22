@@ -123,20 +123,20 @@ if __name__ == '__main__':
         time_limit = None
         auto_moves = 0
 
-        """Various starting board configurations"""
-        s = game.GameState.empty((rows, cols), k)
-        # s = game.GameState.no_corners()
-        # s = game.GameState.no_corners_small()
-        # s = game.GameState.tic_tac_toe()
+    """Various starting board configurations"""
+    s = game.GameState.empty((rows, cols), k)
+    # s = game.GameState.no_corners()
+    # s = game.GameState.no_corners_small()
+    # s = game.GameState.tic_tac_toe()
 
-        """Initialise agents and game runner"""
-        if players == 1:
-            a1 = agent.Agent(s, game.X_PIECE)
-        else:
-            a1 = minimax_agent.MinimaxAgent(s, game.X_PIECE)
-        a2 = minimax_agent.MinimaxAgent(s, game.O_PIECE)
-        r = GameRunner(x_agent=a1, o_agent=a2)
+    """Initialise agents and game runner"""
+    if players == 1:
+        a1 = agent.Agent(s, game.X_PIECE)
+    else:
+        a1 = minimax_agent.MinimaxAgent(s, game.X_PIECE)
+    a2 = minimax_agent.MinimaxAgent(s, game.O_PIECE)
+    r = GameRunner(x_agent=a1, o_agent=a2)
 
-        r.run_game(s, time_limit=time_limit, silent=True)
+    r.run_game(s, time_limit=time_limit, silent=True)
 
 

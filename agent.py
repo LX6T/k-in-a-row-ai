@@ -78,6 +78,9 @@ class Agent:
 
         while True:
             player_input = [int(i) for i in input("Enter your move: ").split()]
+            if len(player_input) != 2:
+                print("Enter 2 coordinates")
+                continue
             move = (player_input[0], player_input[1])
             if state.is_valid_move(move):
                 break
