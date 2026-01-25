@@ -274,7 +274,7 @@ class MinimaxAgent(agent.Agent):
             latest_time_limit = timeout - time.perf_counter() if timeout is not None else None
 
             try:
-                move, value = self.minimax(state, depth, latest_time_limit, float("-inf"), float("inf"), z_hashing, a_wins, b_wins)
+                move, value, fff = self.minimax(state, depth, latest_time_limit, float("-inf"), float("inf"), z_hashing, a_wins, b_wins)
             except Exception as e:
                 print(e)
 
@@ -283,19 +283,20 @@ class MinimaxAgent(agent.Agent):
                 """Full search complete, update best_move"""
                 best_move = move
                 best_value = value
+                best_fff = fff
                 if not self.silent:
-                    print(f"depth={depth}, best_move={best_move}, best_value={best_value}")
+                    print(f"depth={depth}, best_move={best_move}, best_value={best_value}, best_fff={best_fff}")
 
                 """Guaranteed to win, stop search"""
                 if (self.piece == game.X_PIECE and best_value >= 10 ** k or
                         self.piece == game.O_PIECE and best_value <= -10 ** k):
                     if not self.silent:
-                        print(f"Win found in {round(k + 20 - log10(abs(best_value))) + depth} moves")
+                        print(f"Win found in {round(k + 20 - log10(abs(best_value))) + depth + best_fff} moves")
                     break
                 elif (self.piece == game.X_PIECE and best_value <= -10 ** k or
                       self.piece == game.O_PIECE and best_value >= 10 ** k):
                     if not self.silent:
-                        print(f"Loss found in {round(k + 20 - log10(abs(best_value))) + depth} moves")
+                        print(f"Loss found in {round(k + 20 - log10(abs(best_value))) + depth + best_fff} moves")
                     break
 
                 """Search again, one layer deeper"""
@@ -315,6 +316,8 @@ class MinimaxAgent(agent.Agent):
             print(f"Called static_eval() {self.eval_calls} times")
 
             self.print_board(state, best_move)
+            print("_" * 50)
+            print()
 
         return best_move
 
@@ -414,8 +417,8 @@ class MinimaxAgent(agent.Agent):
             """Return static evaluation if reached depth limit"""
             value = self.static_eval(state)
             if z_memory is not None:
-                z_memory[z_key] = (None, value)
-            return None, value
+                z_memory[z_key] = (None, value, ff)
+            return None, value, ff
         else:
             """Otherwise do minimax"""
 
@@ -425,6 +428,7 @@ class MinimaxAgent(agent.Agent):
 
             best_move = None
             best_value = float("-inf") if a_piece == game.X_PIECE else float("inf")
+            best_fff = ff
             moves_to_search = []
 
             if len(a_wins) > 0:                     # If there are winning moves, only search those
@@ -436,14 +440,16 @@ class MinimaxAgent(agent.Agent):
                     for j in range(h):
                         moves_to_search.append((i, j))
 
-            for (i, j) in moves_to_search:
+            for move in moves_to_search:
+                (i, j) = move
+
                 """Iterate until all spaces have been tried, exit early if time limit is reached"""
                 if timeout is None or time.perf_counter() < timeout - self.wrapup_time:
 
                     if state.board[i][j] == game.EMPTY_PIECE:
 
                         """Play A in square (i,j), update Zobrist hash"""
-                        new_state = state.make_move((i, j))
+                        new_state = state.make_move(move)
                         new_z_key = None
                         if z_hashing is not None:
                             z_index = 0 if a_piece == game.X_PIECE else 1
@@ -451,12 +457,13 @@ class MinimaxAgent(agent.Agent):
 
                         if new_z_key is not None and new_z_key in z_memory:
                             """If already calculated for this state, no need to search further"""
-                            (move, value) = z_memory[new_z_key]
+                            (nmove, value, fff) = z_memory[new_z_key]
                         else:
                             largestLine, wins = self.largestFreeLineMade(new_state, a_piece, i, j, h, w, k)
                             if largestLine >= k:
                                 """If A has won, no need to search further"""
-                                value = self.static_eval(new_state) / 10 ** (depth_remaining - ff - 1)
+                                value = self.static_eval(new_state) / 10 ** (depth_remaining - 1)
+                                fff = ff
                             else:
                                 """Run minimax on new state"""
                                 new_time_limit = None
@@ -465,16 +472,17 @@ class MinimaxAgent(agent.Agent):
                                 new_z_hashing = (z_table, z_memory, new_z_key)
 
                                 new_a_wins = a_wins | wins
-                                new_b_wins = b_wins - {(i, j)}
+                                new_b_wins = b_wins - {move}
 
-                                if (len(new_a_wins) == 0 or len(new_b_wins) == 0):
+                                if (len(new_a_wins) == 0 and len(new_b_wins) == 0):
                                     new_depth_remaining = depth_remaining - 1
                                     new_ff = ff
                                 else:
                                     new_depth_remaining = depth_remaining
                                     new_ff = ff + 1
+                                    # print("Fast forwarded, depth ", depth_remaining, ", move", move)
 
-                                move, value = self.minimax(new_state, new_depth_remaining, new_time_limit, alpha, beta,
+                                nmove, value, fff = self.minimax(new_state, new_depth_remaining, new_time_limit, alpha, beta,
                                                         new_z_hashing, new_b_wins, new_a_wins, new_ff)
 
                         """Exit early if reached time limit"""
@@ -484,16 +492,16 @@ class MinimaxAgent(agent.Agent):
                         """Update best move, alpha and beta"""
                         if a_piece == game.X_PIECE:
                             if value > best_value:
-                                best_move, best_value = (i, j), value
+                                best_move, best_value, best_fff = move, value, fff
                             if beta is not None and best_value > beta:
-                                return best_move, best_value
+                                return best_move, best_value, best_fff
                             elif alpha is not None:
                                 alpha = max(alpha, best_value)
                         elif a_piece == game.O_PIECE:
                             if value < best_value:
-                                best_move, best_value = (i, j), value
+                                best_move, best_value, best_fff = move, value, fff
                             if alpha is not None and best_value < alpha:
-                                return best_move, best_value
+                                return best_move, best_value, best_fff
                             elif beta is not None:
                                 beta = min(beta, best_value)
 
@@ -502,9 +510,9 @@ class MinimaxAgent(agent.Agent):
                     break
 
             if z_hashing is not None:
-                z_memory[z_key] = (best_move, best_value)
+                z_memory[z_key] = (best_move, best_value, best_fff)
 
-            return best_move, best_value
+            return best_move, best_value, best_fff
 
     def static_eval(self, state: game.GameState) -> float:
         """
