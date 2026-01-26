@@ -13,6 +13,7 @@ import game
 import agent
 import transcript
 import sys
+import logging
 
 
 class GameRunner:
@@ -78,8 +79,9 @@ class GameRunner:
                 t.runner_comment(f"player {curr_agent.nickname()} did not return a valid move")
                 winner = game.X_PIECE if piece == game.O_PIECE else game.O_PIECE
                 break
-            except:
+            except Exception as ex:
                 print(f"exception during {curr_agent.nickname()}'s play")
+                logging.error(ex, exc_info=True)
                 t.runner_comment(f"exception during {curr_agent.nickname()}'s play")
                 winner = game.X_PIECE if piece == game.O_PIECE else game.O_PIECE
                 break
@@ -107,6 +109,7 @@ if __name__ == '__main__':
     Remember to change the transcript name, otherwise your old transcript will be overwritten!
     """
     import minimax_agent
+    import minimax_agent_stable
 
     if len(sys.argv) > 1:
         rows = int(sys.argv[1])
