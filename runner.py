@@ -137,6 +137,7 @@ if __name__ == '__main__':
         a1 = agent.Agent(s, game.X_PIECE)
     else:
         a1 = minimax_agent.MinimaxAgent(s, game.X_PIECE)
+        a1 = minimax_agent_stable.MinimaxAgentStable(s, game.X_PIECE)
     a2 = minimax_agent.MinimaxAgent(s, game.O_PIECE)
     r = GameRunner(x_agent=a1, o_agent=a2)
 
