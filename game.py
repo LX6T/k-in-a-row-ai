@@ -45,7 +45,7 @@ class GameState:
         """
         return len(self.board)
 
-    def is_valid_move(self, move: (int, int)) -> bool:
+    def is_valid_move(self, move) -> bool:
         """
         Test for if a move is allowed or not.
         :param move: Tuple of (x,y) coords of the desired move
@@ -60,7 +60,7 @@ class GameState:
                     return False
         return True
 
-    def make_move(self, move: (int, int)) -> "GameState":
+    def make_move(self, move) -> "GameState":
         """
         Applies a move to the game board and returns the new state
         :param move: Tuple of (x,y) coords of the desired move
@@ -73,12 +73,12 @@ class GameState:
         nstate = GameState(nboard, nplayer, self.k)
         return nstate
 
-    def overwrite(self, move: (int, int), piece):
+    def overwrite(self, move, piece):
         nboard = [list(row) for row in self.board]
         nboard[move[0]][move[1]] = piece
         self.board = nboard
 
-    def winner(self) -> [str, None]:
+    def winner(self):
         """
         Determines if any agent has won the game.
         :return: token of the winning player, 'draw', or None
@@ -112,7 +112,7 @@ class GameState:
         return None
 
     @classmethod
-    def empty(cls, size: (int, int), k: int, first: str = X_PIECE):
+    def empty(cls, size, k: int, first: str = X_PIECE):
         """
         Creates a new empty board. Because this is a classmethod, call this function by referring to the class instead
         of an instance of the class, such as GameState.empty() instead of state.empty()

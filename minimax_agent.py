@@ -458,7 +458,7 @@ class MinimaxAgent(agent.Agent):
         """
         return "alpha_agent"
 
-    def choose_move(self, state: game.GameState, time_limit: float) -> (int, int):
+    def choose_move(self, state: game.GameState, time_limit: float):
         """
         Selects a move to make on the given game board. Returns a move
         :param state: current game state
@@ -556,7 +556,7 @@ class MinimaxAgent(agent.Agent):
 
     def minimax(self, state: game.GameState, depth_remaining: int, time_limit: float,
                 alpha: float, beta: float, z_hashing, 
-                ff: int, ff_branch_max: int) -> ((int, int), float): # type: ignore
+                ff: int, ff_branch_max: int):
         """
         Uses minimax to evaluate the given state and choose the best action from this state. Uses the next_player of the
         given state to decide between min and max. Recursively calls itself to reach depth_remaining layers. Optionally
