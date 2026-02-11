@@ -109,25 +109,28 @@ if __name__ == '__main__':
     Remember to change the transcript name, otherwise your old transcript will be overwritten!
     """
     import minimax_agent
-    import minimax_agent_stable
+    import minimax_agent_old
 
     if len(sys.argv) > 1:
         rows = int(sys.argv[1])
         cols = int(sys.argv[2])
         k = int(sys.argv[3])
         players = int(sys.argv[4])  # 0 or 1
-        time_limit = int(sys.argv[5]) if len(sys.argv) > 5 else None
-        auto_moves = int(sys.argv[6]) if len(sys.argv) > 6 else 0
+        init_ff_branch_max = int(sys.argv[5]) if len(sys.argv) > 5 else None
+        time_limit = int(sys.argv[6]) if len(sys.argv) > 6 else None
+        auto_moves = int(sys.argv[7]) if len(sys.argv) > 7 else 0
     else:
         rows = 7
         cols = 9
         k = 5
         players = 0
+        init_ff_branch_max = 10
         time_limit = None
         auto_moves = 0
 
     """Various starting board configurations"""
     s = game.GameState.empty((rows, cols), k)
+    # s = game.GameState.custom()
     # s = game.GameState.no_corners()
     # s = game.GameState.no_corners_small()
     # s = game.GameState.tic_tac_toe()
@@ -136,10 +139,15 @@ if __name__ == '__main__':
     if players == 1:
         a1 = agent.Agent(s, game.X_PIECE)
     else:
-        a1 = minimax_agent.MinimaxAgent(s, game.X_PIECE)
-        a1 = minimax_agent_stable.MinimaxAgentStable(s, game.X_PIECE)
-    a2 = minimax_agent.MinimaxAgent(s, game.O_PIECE)
+        a1 = minimax_agent.MinimaxAgent(s, game.X_PIECE, init_ff_branch_max)
+        # a1 = minimax_agent_old.MinimaxAgentOld(s, game.X_PIECE)
+    a2 = minimax_agent.MinimaxAgent(s, game.O_PIECE, init_ff_branch_max)
+    # a2 = minimax_agent_old.MinimaxAgentOld(s, game.O_PIECE)
     r = GameRunner(x_agent=a1, o_agent=a2)
+
+    print(s)
+    print("_" * 50)
+    print()
 
     r.run_game(s, time_limit=time_limit, silent=True)
 

@@ -53,6 +53,13 @@ class GameState:
         """
         return move[0] < self.w and move[1] < self.h and self.board[move[0]][move[1]] is EMPTY_PIECE
 
+    def is_full(self) -> bool:
+        for row in self.board:
+            for piece in row:
+                if piece == EMPTY_PIECE:
+                    return False
+        return True
+
     def make_move(self, move: (int, int)) -> "GameState":
         """
         Applies a move to the game board and returns the new state
@@ -117,6 +124,34 @@ class GameState:
         assert k <= max(size)
         nboard = [[EMPTY_PIECE for _ in range(size[1])] for _ in range(size[0])]
         return GameState(nboard, first, k)
+
+    @classmethod
+    def custom(cls):
+        nboard = [[' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+                  [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+                  [' ', ' ', ' ', ' ', ' ', ' ', 'O', ' ', ' ', ' '],
+                  [' ', ' ', ' ', ' ', ' ', 'X', ' ', ' ', ' ', ' '],
+                  [' ', ' ', 'X', ' ', 'X', 'X', 'O', ' ', ' ', ' '],
+                  [' ', ' ', ' ', 'X', 'O', 'O', 'O', 'O', 'X', ' '],
+                  [' ', ' ', 'X', ' ', 'X', ' ', 'X', ' ', ' ', ' '],
+                  [' ', 'O', ' ', ' ', ' ', 'O', ' ', ' ', ' ', ' '],
+                  [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+                  [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ']]
+        return GameState(nboard, O_PIECE, 5)
+    
+    # @classmethod
+    # def custom(cls):
+    #     nboard = [[' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+    #               [' ', ' ', ' ', ' ', ' ', ' ', 'X', ' ', ' ', ' '],
+    #               ['O', ' ', ' ', 'O', ' ', ' ', 'O', ' ', ' ', ' '],
+    #               [' ', 'X', ' ', 'X', 'X', 'X', 'O', ' ', ' ', ' '],
+    #               [' ', 'O', 'X', 'X', 'X', 'X', 'O', ' ', ' ', ' '],
+    #               [' ', ' ', ' ', 'X', 'O', 'O', 'O', 'O', 'X', ' '],
+    #               [' ', ' ', 'X', 'X', 'X', 'O', 'X', ' ', ' ', ' '],
+    #               [' ', 'O', ' ', 'O', ' ', 'O', ' ', ' ', ' ', ' '],
+    #               [' ', ' ', ' ', ' ', ' ', 'O', ' ', ' ', ' ', ' '],
+    #               [' ', ' ', ' ', ' ', ' ', 'X', ' ', ' ', ' ', ' ']]
+    #     return GameState(nboard, O_PIECE, 5)
 
     @classmethod
     def tic_tac_toe(cls):
