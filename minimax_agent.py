@@ -466,10 +466,12 @@ class MinimaxAgent(agent.Agent):
         :return: move (x,y)
         """
 
-        self.eval_calls = 0
         h = state.h
         w = state.w
         k = state.k
+        
+        self.eval_calls = 0
+        self.full_squares = set([(i, j) for i in range(w) for j in range(h) if state.board[i][j] != game.EMPTY_PIECE])
 
         """Default best move is first available empty space"""
         best_move = None
@@ -480,6 +482,7 @@ class MinimaxAgent(agent.Agent):
                     max_depth += 1  # Count empty squares while finding default move
                     if best_move is None:
                         best_move = (i, j)
+        
 
         """Limit the maximum search depth to 3"""
         max_depth = min(max_depth, 3)
@@ -766,7 +769,6 @@ class MinimaxAgent(agent.Agent):
                         best_move, best_value, best_fff = move, value, fff
                     if found_win(a_piece, best_value): break
             
-                full_squares = set([(i, j) for i in range(w) for j in range(h) if state.board[i][j] != game.EMPTY_PIECE])
                 remaining_moves = [(i, j) for i in range(w) for j in range(h) if state.board[i][j] == game.EMPTY_PIECE and (i, j) not in searched_moves]
 
                 adjacent_1_moves = set()
@@ -777,7 +779,7 @@ class MinimaxAgent(agent.Agent):
 
                     dist_1_squares = [(i, j) for i in range(x-1, x+2) for j in range(y-1, y+2) if (i, j) != (x, y)]
                     for d1 in dist_1_squares:
-                        if d1 in full_squares:
+                        if d1 in self.full_squares:
                             adjacent_1_moves.add(r_move)
                             break
 
@@ -786,7 +788,7 @@ class MinimaxAgent(agent.Agent):
                     
                     dist_2_squares = [(i, j) for i in range(x-1, x+2) for j in range(y-1, y+2) if (i, j) != (x, y) and not (i, j) in dist_1_squares]
                     for d2 in dist_2_squares:
-                        if d2 in full_squares:
+                        if d2 in self.full_squares:
                             adjacent_2_moves.add(r_move)
                             break
 
@@ -800,24 +802,24 @@ class MinimaxAgent(agent.Agent):
 
                 if adjacent_1_moves:
                     searched_moves += adjacent_1_moves
+                    can_ff = len(searched_moves) < ff_branch_max
                     move, value, fff = self.search_moves(state, depth_remaining, alpha, beta, 
                                                                 z_hashing, z_index, ff, timeout, h, 
                                                                 a_piece, adjacent_1_moves, 
                                                                 best_move, best_value, best_fff, 
-                                                                len(searched_moves) < ff_branch_max,
-                                                                ff_branch_max)
+                                                                can_ff, 1 + ff_branch_max / 2 if can_ff else ff_branch_max)
                     if sign * value > sign * best_value:
                         best_move, best_value, best_fff = move, value, fff
                     if found_win(a_piece, best_value): break
                 
                 if adjacent_2_moves:
                     searched_moves += adjacent_2_moves
+                    can_ff = len(searched_moves) < ff_branch_max
                     move, value, fff = self.search_moves(state, depth_remaining, alpha, beta, 
                                                                 z_hashing, z_index, ff, timeout, h, 
                                                                 a_piece, adjacent_2_moves, 
                                                                 best_move, best_value, best_fff, 
-                                                                len(searched_moves) < ff_branch_max,
-                                                                ff_branch_max)
+                                                                can_ff, 1 + ff_branch_max / 2 if can_ff else ff_branch_max)
                     if sign * value > sign * best_value:
                         best_move, best_value, best_fff = move, value, fff
                     if found_win(a_piece, best_value): break
@@ -867,9 +869,12 @@ class MinimaxAgent(agent.Agent):
                 new_depth_remaining = depth_remaining if can_fast_forward else depth_remaining - 1
                 new_ff = ff + 1 if can_fast_forward else ff
                 new_ff_branch_max = ff_branch_max - 1 if can_fast_forward else ff_branch_max
+                
+                self.full_squares.add(move)
                 _, value, fff = self.minimax(new_state, new_depth_remaining, new_time_limit,
                                                 alpha, beta, (z_table, z_memory, new_z_key), 
                                                 new_ff, new_ff_branch_max)
+                self.full_squares.remove(move)
 
             """Exit early if reached time limit"""
             if value is None:
