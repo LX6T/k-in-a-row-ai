@@ -766,18 +766,33 @@ class MinimaxAgent(agent.Agent):
                         best_move, best_value, best_fff = move, value, fff
                     if found_win(a_piece, best_value): break
             
+                full_squares = set([(i, j) for i in range(w) for j in range(h) if state.board[i][j] != game.EMPTY_PIECE])
                 remaining_moves = [(i, j) for i in range(w) for j in range(h) if state.board[i][j] == game.EMPTY_PIECE and (i, j) not in searched_moves]
-                adjacent_1_moves = []
-                adjacent_2_moves = []
+
+                adjacent_1_moves = set()
+                adjacent_2_moves = set()
+
                 for r_move in remaining_moves:
-                    for s_move in searched_moves:
-                        dist_x, dist_y = abs(r_move[0]-s_move[0]), abs(r_move[1]-s_move[1])
-                        if dist_x <= 1 or dist_y <= 1:
-                            adjacent_1_moves.append(r_move)
+                    x, y = r_move
+
+                    dist_1_squares = [(i, j) for i in range(x-1, x+2) for j in range(y-1, y+2) if (i, j) != (x, y)]
+                    for d1 in dist_1_squares:
+                        if d1 in full_squares:
+                            adjacent_1_moves.add(r_move)
                             break
-                        elif dist_x <= 2 or dist_y <= 2:
-                            adjacent_2_moves.append(r_move)
+
+                    if r_move in adjacent_1_moves:
+                        continue
+                    
+                    dist_2_squares = [(i, j) for i in range(x-1, x+2) for j in range(y-1, y+2) if (i, j) != (x, y) and not (i, j) in dist_1_squares]
+                    for d2 in dist_2_squares:
+                        if d2 in full_squares:
+                            adjacent_2_moves.add(r_move)
                             break
+
+                adjacent_1_moves = list(adjacent_1_moves)
+                adjacent_2_moves = list(adjacent_2_moves)
+                
                 for move in adjacent_1_moves:
                     remaining_moves.remove(move)
                 for move in adjacent_2_moves:
