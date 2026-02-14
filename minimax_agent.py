@@ -586,6 +586,9 @@ class MinimaxAgent(agent.Agent):
         elif depth_remaining == 0 or state.is_full() or state.winner():
             """Return static evaluation if reached depth limit or game over"""
             value = self.static_eval(state) / 10 ** (depth_remaining + ff)
+            # TODO: Separate value and moves to win
+            if abs(value) < POW10[state.k]:
+                value *= POW10[ff]
             if z_memory is not None:
                 z_memory[z_key] = (None, value, ff)
             return None, value, ff
@@ -641,12 +644,12 @@ class MinimaxAgent(agent.Agent):
                         b_win_next_next_next_turn_threats,
                         b_win_next_next_next_next_turn_threats)
 
-            searched_moves = []
+            searched_moves = set()
 
             """Search immediate wins and threats first, then other remaining moves"""
             while True:
                 if a_win_next_turn_threats:
-                    searched_moves += list(a_win_next_turn_threats)
+                    searched_moves.update(a_win_next_turn_threats)
                     best_move, best_value, best_fff = self.search_moves(state, depth_remaining, alpha, beta, 
                                                                     z_hashing, z_index, ff, timeout, h, 
                                                                     a_piece, a_win_next_turn_threats, 
@@ -655,7 +658,7 @@ class MinimaxAgent(agent.Agent):
                     break
                 
                 if b_win_next_turn_threats:
-                    searched_moves += list(b_win_next_turn_threats)
+                    searched_moves.update(b_win_next_turn_threats)
                     best_move, best_value, best_fff = self.search_moves(state, depth_remaining, alpha, beta, 
                                                                     z_hashing, z_index, ff, timeout, h, 
                                                                     a_piece, b_win_next_turn_threats, 
@@ -665,13 +668,11 @@ class MinimaxAgent(agent.Agent):
                     break
                 
                 if a_win_next_next_turn_threats:
-                    moves = []
-                    for t in a_win_next_next_turn_threats: 
-                        moves.append(t[0])
-                    searched_moves += moves
+                    moves = {t[0] for t in a_win_next_next_turn_threats}
+                    searched_moves.update(moves)
                     move, value, fff = self.search_moves(state, depth_remaining, alpha, beta, 
                                                                 z_hashing, z_index, ff, timeout, h, 
-                                                                a_piece, moves, 
+                                                                a_piece, list(moves), 
                                                                 best_move, best_value, best_fff, 
                                                                 len(searched_moves) < ff_branch_max,
                                                                 ff_branch_max)
@@ -680,13 +681,12 @@ class MinimaxAgent(agent.Agent):
                     if found_win(a_piece, best_value): break
                 
                 if b_win_next_next_turn_threats:
-                    moves = []
+                    moves = {x[0] for x in b_win_next_next_turn_threats}
                     for x in b_win_next_next_turn_threats:
-                        moves.append(x[0])
-                        moves += list(x[1])
+                        moves.update(x[1])
                     for t in a_k_1_threats:
-                        moves += list(t)
-                    searched_moves += moves
+                        moves.update(t)
+                    searched_moves.update(moves)
                     move, value, fff = self.search_moves(state, depth_remaining, alpha, beta, 
                                                                 z_hashing, z_index, ff, timeout, h, 
                                                                 a_piece, moves, 
@@ -698,13 +698,11 @@ class MinimaxAgent(agent.Agent):
                     if found_win(a_piece, best_value): break
                 
                 if a_win_next_next_next_turn_threats:
-                    moves = []
-                    for t in a_win_next_next_next_turn_threats:
-                        moves.append(t[0])
-                    searched_moves += moves
+                    moves = {t[0] for t in a_win_next_next_next_turn_threats}
+                    searched_moves.update(moves)
                     move, value, fff = self.search_moves(state, depth_remaining, alpha, beta, 
                                                                 z_hashing, z_index, ff, timeout, h, 
-                                                                a_piece, moves, 
+                                                                a_piece, list(moves), 
                                                                 best_move, best_value, best_fff, 
                                                                 len(searched_moves) < ff_branch_max,
                                                                 ff_branch_max)
@@ -713,16 +711,16 @@ class MinimaxAgent(agent.Agent):
                     if found_win(a_piece, best_value): break
                 
                 if b_win_next_next_next_turn_threats:
-                    moves = []
+                    moves = set()
                     for b_win_nnnt_t in b_win_next_next_next_turn_threats:
                         overlapping_square, b_win_nnt_t_ref = b_win_nnnt_t
-                        moves.append(overlapping_square)
+                        moves.add(overlapping_square)
                         for ref in b_win_nnt_t_ref:
-                            moves.append(ref[0])
-                            moves += list(ref[1])
+                            moves.add(ref[0])
+                            moves.update(ref[1])
                             if len(ref) == 3:
-                                moves += list(ref[2])
-                    searched_moves += moves
+                                moves.update(ref[2])
+                    searched_moves.update(moves)
                     move, value, fff = self.search_moves(state, depth_remaining, alpha, beta, 
                                                                 z_hashing, z_index, ff, timeout, h, 
                                                                 a_piece, moves, 
@@ -734,13 +732,11 @@ class MinimaxAgent(agent.Agent):
                     if found_win(a_piece, best_value): break
                 
                 if a_win_next_next_next_next_turn_threats:
-                    moves = []
-                    for t in a_win_next_next_next_next_turn_threats:
-                        moves.append(t[0])
-                    searched_moves += moves
+                    moves = {t[0] for t in a_win_next_next_next_next_turn_threats}
+                    searched_moves.update(moves)
                     move, value, fff = self.search_moves(state, depth_remaining, alpha, beta, 
                                                                 z_hashing, z_index, ff, timeout, h, 
-                                                                a_piece, moves, 
+                                                                a_piece, list(moves), 
                                                                 best_move, best_value, best_fff, 
                                                                 len(searched_moves) < ff_branch_max,
                                                                 ff_branch_max)
@@ -749,16 +745,16 @@ class MinimaxAgent(agent.Agent):
                     if found_win(a_piece, best_value): break
                 
                 if b_win_next_next_next_next_turn_threats:
-                    moves = []
+                    moves = set()
                     for b_win_nnnnt_t in b_win_next_next_next_next_turn_threats:
                         first, b_win_nnnt_t = b_win_nnnnt_t
-                        moves.append(first)
+                        moves.add(first)
                         second, b_win_nnt_t_ref = b_win_nnnt_t
-                        moves.append(second)
+                        moves.add(second)
                         for ref in b_win_nnt_t_ref:
-                            moves.append(ref[0])
-                            moves += list(ref[1])
-                    searched_moves += moves
+                            moves.add(ref[0])
+                            moves.update(ref[1])
+                    searched_moves.update(moves)
                     move, value, fff = self.search_moves(state, depth_remaining, alpha, beta, 
                                                                 z_hashing, z_index, ff, timeout, h, 
                                                                 a_piece, moves, 
@@ -768,44 +764,37 @@ class MinimaxAgent(agent.Agent):
                     if sign * value > sign * best_value:
                         best_move, best_value, best_fff = move, value, fff
                     if found_win(a_piece, best_value): break
+
+                # TODO: instead of adjacent moves, search in k_1_threats, k_2_threats, etc.
             
-                remaining_moves = [(i, j) for i in range(w) for j in range(h) if state.board[i][j] == game.EMPTY_PIECE and (i, j) not in searched_moves]
+                empty_moves = {(i, j) for i in range(w) for j in range(h) if state.board[i][j] == game.EMPTY_PIECE and (i, j) not in searched_moves}
 
                 adjacent_1_moves = set()
                 adjacent_2_moves = set()
 
-                for r_move in remaining_moves:
-                    x, y = r_move
-
-                    dist_1_squares = [(i, j) for i in range(x-1, x+2) for j in range(y-1, y+2) if (i, j) != (x, y)]
-                    for d1 in dist_1_squares:
-                        if d1 in self.full_squares:
-                            adjacent_1_moves.add(r_move)
-                            break
-
-                    if r_move in adjacent_1_moves:
-                        continue
+                for fx, fy in self.full_squares:
+                    for dx in range(-1, 2):
+                        for dy in range(-1, 2):
+                            if dx == 0 and dy == 0:
+                                continue
+                            nx, ny = fx + dx, fy + dy
+                            if 0 <= nx < w and 0 <= ny < h and (nx, ny) in empty_moves:
+                                adjacent_1_moves.add((nx, ny))
                     
-                    dist_2_squares = [(i, j) for i in range(x-1, x+2) for j in range(y-1, y+2) if (i, j) != (x, y) and not (i, j) in dist_1_squares]
-                    for d2 in dist_2_squares:
-                        if d2 in self.full_squares:
-                            adjacent_2_moves.add(r_move)
-                            break
+                    for dx in [-2, 2]:
+                        for dy in range(-2, 3):
+                            nx, ny = fx + dx, fy + dy
+                            if 0 <= nx < w and 0 <= ny < h and (nx, ny) in empty_moves:
+                                adjacent_2_moves.add((nx, ny))
 
-                adjacent_1_moves = list(adjacent_1_moves)
-                adjacent_2_moves = list(adjacent_2_moves)
-                
-                for move in adjacent_1_moves:
-                    remaining_moves.remove(move)
-                for move in adjacent_2_moves:
-                    remaining_moves.remove(move)
+                remaining_moves = [m for m in empty_moves if m not in adjacent_1_moves and m not in adjacent_2_moves]
 
                 if adjacent_1_moves:
-                    searched_moves += adjacent_1_moves
+                    searched_moves.update(adjacent_1_moves)
                     can_ff = len(searched_moves) < ff_branch_max
                     move, value, fff = self.search_moves(state, depth_remaining, alpha, beta, 
                                                                 z_hashing, z_index, ff, timeout, h, 
-                                                                a_piece, adjacent_1_moves, 
+                                                                a_piece, list(adjacent_1_moves), 
                                                                 best_move, best_value, best_fff, 
                                                                 can_ff, 1 + ff_branch_max / 2 if can_ff else ff_branch_max)
                     if sign * value > sign * best_value:
@@ -813,11 +802,11 @@ class MinimaxAgent(agent.Agent):
                     if found_win(a_piece, best_value): break
                 
                 if adjacent_2_moves:
-                    searched_moves += adjacent_2_moves
+                    searched_moves.update(adjacent_2_moves)
                     can_ff = len(searched_moves) < ff_branch_max
                     move, value, fff = self.search_moves(state, depth_remaining, alpha, beta, 
                                                                 z_hashing, z_index, ff, timeout, h, 
-                                                                a_piece, adjacent_2_moves, 
+                                                                a_piece, list(adjacent_2_moves), 
                                                                 best_move, best_value, best_fff, 
                                                                 can_ff, 1 + ff_branch_max / 2 if can_ff else ff_branch_max)
                     if sign * value > sign * best_value:
