@@ -121,8 +121,8 @@ if __name__ == '__main__':
         auto_moves = int(sys.argv[7]) if len(sys.argv) > 7 else 0
     else:
         rows = 7
-        cols = 9
-        k = 5
+        cols = 7
+        k = 4
         players = 0
         init_ff_branch_max = 10
         time_limit = None
