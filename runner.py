@@ -9,6 +9,7 @@ You probably should change the section at the bottom of this file for your own t
 reflected in our grading, so you probably shouldn't change the GameRunner class.
 """
 
+import time
 import game
 import agent
 import transcript
@@ -110,6 +111,7 @@ if __name__ == '__main__':
     """
     import minimax_agent
     import minimax_agent_old
+    import minimax_agent_parallel
 
     if len(sys.argv) > 1:
         rows = int(sys.argv[1])
@@ -140,8 +142,10 @@ if __name__ == '__main__':
         a1 = agent.Agent(s, game.X_PIECE)
     else:
         a1 = minimax_agent.MinimaxAgent(s, game.X_PIECE, init_ff_branch_max)
+        # a1 = minimax_agent_parallel.MinimaxAgentParallel(s, game.X_PIECE, init_ff_branch_max)
         # a1 = minimax_agent_old.MinimaxAgentOld(s, game.X_PIECE)
     a2 = minimax_agent.MinimaxAgent(s, game.O_PIECE, init_ff_branch_max)
+    # a2 = minimax_agent_parallel.MinimaxAgentParallel(s, game.O_PIECE, init_ff_branch_max)
     # a2 = minimax_agent_old.MinimaxAgentOld(s, game.O_PIECE)
     r = GameRunner(x_agent=a1, o_agent=a2)
 
@@ -149,6 +153,8 @@ if __name__ == '__main__':
     print("_" * 50)
     print()
 
+    t_init = time.perf_counter()
     r.run_game(s, time_limit=time_limit, silent=True)
+    print(time.perf_counter() - t_init)
 
 
