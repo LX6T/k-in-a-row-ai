@@ -331,7 +331,7 @@ def update_threats(new_square, k_1_threats, k_2_threats,
     for w in win_next_next_next_next_turn_threats:
         root, refs = w
         if new_square == root:
-            win_next_next_next_turn_threats.update(refs)
+            win_next_next_next_turn_threats.add(refs)
             to_remove.append(w)
             continue
     if to_remove:
