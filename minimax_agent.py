@@ -492,6 +492,8 @@ class MinimaxAgent(agent.Agent):
         timeout = time.perf_counter() + time_limit if time_limit is not None else None
         depth = 1
 
+        print(f"static_eval={self.static_eval(state)}")
+
         while depth <= max_depth:
 
             self.depth_counter = {}
@@ -514,7 +516,7 @@ class MinimaxAgent(agent.Agent):
 
                 """Full search complete, update best_move"""
                 best_move = move
-                best_value = value
+                best_value = round(value)
                 best_fff = fff
                 if not self.silent:
                     print(f"depth={depth}, best_move={best_move}, best_value={best_value}, best_fff={best_fff}")
@@ -932,8 +934,8 @@ class MinimaxAgent(agent.Agent):
                                                             a_k_2_threats, b_k_2_threats, 
                                                             a_k_3_threats, b_k_3_threats)
 
-        a_win_value = a_sign * win_value * (1 + a_value / POW10[k])
-        b_win_value = b_sign * win_value * (1 + b_value / POW10[k])
+        a_win_value = a_sign * win_value * (1 + a_value * POWNEG10[k])
+        b_win_value = b_sign * win_value * (1 + b_value * POWNEG10[k])
 
         """
         ===============================================
@@ -1304,32 +1306,11 @@ class MinimaxAgent(agent.Agent):
                 """
                 value = round(b_win_value * POWNEG10[7 + fast_forward_counter])
 
-        # if value == 0 and len(a_win_next_next_next_next_turn_threats) >= 1:
-        #     found_win = False
-        #     if len(b_k_1_threats) == 0:
-        #         found_win = True
-        #     elif len(a_k_1_threats) >= 1:
-        #         b_k_1_threat_squares = {}
-        #         for t1 in b_k_1_threats:
-        #             b_k_1_threat_squares[t1[0]] = t1[1]
-        #             b_k_1_threat_squares[t1[1]] = t1[0]
-        #         for t1 in a_k_1_threats:
-        #             if found_win:
-        #                 break
-        #             for w1 in a_win_next_next_next_next_turn_threats:
-        #                 if found_win:
-        #                     break
-        #                 if w1[0] in t1 or (t1[0] == w1[1][0][0] or (len(w1[1]) == 2 and t1[1] == w1[1][1][0])):
-        #                     b_forced_square = t1[1] if w1[0] == t1[0] else t1[0]
-        #                     next_a_squares = set()
-        #                     for w2 in w1[1]:
-        #                         next_a_squares.add(w2[0])
-        #                     if (b_forced_square not in b_k_1_threat_squares or
-        #                             b_k_1_threat_squares[b_forced_square] in next_a_squares):
-        #                         found_win = True
+        if value == 0 and len(a_win_next_next_next_next_turn_threats) >= 1:
+            found_win = (len(b_k_1_threats) == 0)
 
-        #     if found_win:
-        #         value = round(a_win_value * POWNEG10[8 + fast_forward_counter])
+            if found_win:
+                value = round(a_win_value * POWNEG10[8 + fast_forward_counter])
 
         """No forced wins detected"""
         if value == 0:
