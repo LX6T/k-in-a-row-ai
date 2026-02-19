@@ -407,7 +407,7 @@ def block_threats(blocking_square, k_1_threats, k_2_threats, k_3_threats,
     if to_remove:
         win_next_next_next_next_turn_threats.difference_update(to_remove)
 
-def get_squares_from_threat(threat):
+def get_squares_from_wn3_threat(threat):
     """
     Helper method to deconstruct an element of win_next_next_next_turn_threats
     """
@@ -424,6 +424,16 @@ def get_squares_from_threat(threat):
         second = refs[1]
         squares.add(second[0])
         squares.update(second[1])
+
+    return squares
+
+def get_squares_from_wn4_threat(threat):
+    """
+    Helper method to deconstruct an element of win_next_next_next_next_turn_threats
+    """
+    root, refs = threat
+    squares = {root, refs[0]}
+    squares.update(get_squares_from_wn3_threat(refs))
 
     return squares
 
@@ -470,7 +480,7 @@ class MinimaxAgent(agent.Agent):
         h = state.h
         w = state.w
         k = state.k
-        
+
         self.eval_calls = 0
         self.full_squares = set([(i, j) for i in range(w) for j in range(h) if state.board[i][j] != game.EMPTY_PIECE])
 
@@ -1248,7 +1258,7 @@ class MinimaxAgent(agent.Agent):
                 for w2 in b_win_next_next_next_turn_threats:
                     if found_win:
                         break
-                    w2_squares = get_squares_from_threat(w2)
+                    w2_squares = get_squares_from_wn3_threat(w2)
                     if w1[0] != w2[0] and w1[0] not in w2_squares and w2[0] not in w1[1] and set(w1[1]).isdisjoint(
                             w2_squares):
                         found_win = True
@@ -1265,8 +1275,8 @@ class MinimaxAgent(agent.Agent):
                     for w2 in b_win_next_next_next_turn_threats.difference(completed):
                         if found_win:
                             break
-                        w1_squares = get_squares_from_threat(w1)
-                        w2_squares = get_squares_from_threat(w2)
+                        w1_squares = get_squares_from_wn3_threat(w1)
+                        w2_squares = get_squares_from_wn3_threat(w2)
                         if (len(w1[1]) == 2 or len(w2[1]) == 2) and len(a_k_2_threats) != 0:
                             break
                         if (w1[0] != w2[0] and
@@ -1311,6 +1321,29 @@ class MinimaxAgent(agent.Agent):
 
             if found_win:
                 value = round(a_win_value * POWNEG10[8 + fast_forward_counter])
+        
+        if value == 0 and len(b_win_next_next_next_next_turn_threats) >= 1 and len(a_k_1_threats) == 0:
+
+            found_win = False
+
+            for w1 in b_win_next_next_turn_threats:
+                if found_win:
+                    break
+                for w2 in b_win_next_next_next_next_turn_threats:
+                    if found_win:
+                        break
+                    w2_squares = get_squares_from_wn4_threat(w2)
+                    if w1[0] != w2[0] and w1[0] not in w2_squares and w2[0] not in w1[1] and set(w1[1]).isdisjoint(
+                            w2_squares):
+                        found_win = True
+                        for t1 in a_k_2_threats:
+                            if w1[0] in t1 or not set(w1[1]).isdisjoint(t1):
+                                found_win = False
+
+            # TODO: Add more advanced combinations
+
+            if found_win:
+                value = round(b_win_value * POWNEG10[9 + fast_forward_counter])
 
         """No forced wins detected"""
         if value == 0:
