@@ -599,7 +599,7 @@ class MinimaxAgent(agent.Agent):
         elif depth_remaining == 0 or state.is_full() or state.winner():
             """Return static evaluation if reached depth limit or game over"""
             value = self.static_eval(state) * POWNEG10[depth_remaining + ff]
-            # TODO: Separate value and moves to win
+            # TODO: Separate value and moves to win, add option best_msg
             if abs(value) < POW10[state.k]:
                 value *= POW10[ff]
             if z_memory is not None:
@@ -665,7 +665,7 @@ class MinimaxAgent(agent.Agent):
                     searched_moves.update(a_win_next_turn_threats)
                     best_move, best_value, best_fff, alpha, beta = self.search_moves(state, depth_remaining, alpha, beta, 
                                                                     z_hashing, z_index, ff, timeout, h, 
-                                                                    a_piece, a_win_next_turn_threats, 
+                                                                    a_piece, list(a_win_next_turn_threats), 
                                                                     best_move, best_value, best_fff, 
                                                                     False, ff_branch_max)
                     break
@@ -674,7 +674,7 @@ class MinimaxAgent(agent.Agent):
                     searched_moves.update(b_win_next_turn_threats)
                     best_move, best_value, best_fff, alpha, beta = self.search_moves(state, depth_remaining, alpha, beta, 
                                                                     z_hashing, z_index, ff, timeout, h, 
-                                                                    a_piece, b_win_next_turn_threats, 
+                                                                    a_piece, list(b_win_next_turn_threats), 
                                                                     best_move, best_value, best_fff, 
                                                                     len(searched_moves) < ff_branch_max,
                                                                     ff_branch_max)
@@ -701,7 +701,7 @@ class MinimaxAgent(agent.Agent):
                     searched_moves.update(moves)
                     move, value, fff, alpha, beta = self.search_moves(state, depth_remaining, alpha, beta, 
                                                                 z_hashing, z_index, ff, timeout, h, 
-                                                                a_piece, moves, 
+                                                                a_piece, list(moves), 
                                                                 best_move, best_value, best_fff, 
                                                                 len(searched_moves) < ff_branch_max,
                                                                 ff_branch_max)
@@ -733,7 +733,7 @@ class MinimaxAgent(agent.Agent):
                     searched_moves.update(moves)
                     move, value, fff, alpha, beta = self.search_moves(state, depth_remaining, alpha, beta, 
                                                                 z_hashing, z_index, ff, timeout, h, 
-                                                                a_piece, moves, 
+                                                                a_piece, list(moves), 
                                                                 best_move, best_value, best_fff, 
                                                                 len(searched_moves) < ff_branch_max,
                                                                 ff_branch_max)
@@ -765,42 +765,129 @@ class MinimaxAgent(agent.Agent):
                     searched_moves.update(moves)
                     move, value, fff, alpha, beta = self.search_moves(state, depth_remaining, alpha, beta, 
                                                                 z_hashing, z_index, ff, timeout, h, 
-                                                                a_piece, moves, 
+                                                                a_piece, list(moves), 
                                                                 best_move, best_value, best_fff, 
                                                                 len(searched_moves) < ff_branch_max,
                                                                 ff_branch_max)
                     alpha, beta, best_move, best_value, best_fff, stop_search = self.eval_move(alpha, beta, a_piece, best_move, best_value, best_fff, move, value, fff)
                     if stop_search: break
 
-                # TODO: instead of adjacent moves, search in k_1_threats, k_2_threats, etc.
-            
+                if a_k_1_threats:
+                    moves = set()
+                    for t in a_k_1_threats:
+                        moves.update(t)
+                    moves = moves - searched_moves
+                    searched_moves.update(moves)
+                    move, value, fff, alpha, beta = self.search_moves(state, depth_remaining, alpha, beta, 
+                                                                z_hashing, z_index, ff, timeout, h,
+                                                                a_piece, list(moves),
+                                                                best_move, best_value, best_fff,
+                                                                len(searched_moves) < ff_branch_max, ff_branch_max)
+                    alpha, beta, best_move, best_value, best_fff, stop_search = self.eval_move(alpha, beta, a_piece, best_move, best_value, best_fff, move, value, fff)
+                    if stop_search: break
+                
+                if a_k_2_threats:
+                    moves = set()
+                    for t in a_k_2_threats:
+                        moves.update(t)
+                    moves = moves - searched_moves
+                    searched_moves.update(moves)
+                    move, value, fff, alpha, beta = self.search_moves(state, depth_remaining, alpha, beta, 
+                                                                z_hashing, z_index, ff, timeout, h,
+                                                                a_piece, list(moves),
+                                                                best_move, best_value, best_fff,
+                                                                False, ff_branch_max)
+                    alpha, beta, best_move, best_value, best_fff, stop_search = self.eval_move(alpha, beta, a_piece, best_move, best_value, best_fff, move, value, fff)
+                    if stop_search: break
+                
+                if a_k_3_threats:
+                    moves = set()
+                    for t in a_k_3_threats:
+                        moves.update(t)
+                    moves = moves - searched_moves
+                    searched_moves.update(moves)
+                    move, value, fff, alpha, beta = self.search_moves(state, depth_remaining, alpha, beta, 
+                                                                z_hashing, z_index, ff, timeout, h,
+                                                                a_piece, list(moves),
+                                                                best_move, best_value, best_fff,
+                                                                False, ff_branch_max)
+                    alpha, beta, best_move, best_value, best_fff, stop_search = self.eval_move(alpha, beta, a_piece, best_move, best_value, best_fff, move, value, fff)
+                    if stop_search: break
+
+                if b_k_1_threats:
+                    moves = set()
+                    for t in b_k_1_threats:
+                        moves.update(t)
+                    moves = moves - searched_moves
+                    searched_moves.update(moves)
+                    move, value, fff, alpha, beta = self.search_moves(state, depth_remaining, alpha, beta, 
+                                                                z_hashing, z_index, ff, timeout, h,
+                                                                a_piece, list(moves),
+                                                                best_move, best_value, best_fff,
+                                                                False, ff_branch_max)
+                    alpha, beta, best_move, best_value, best_fff, stop_search = self.eval_move(alpha, beta, a_piece, best_move, best_value, best_fff, move, value, fff)
+                    if stop_search: break
+                
+                if b_k_2_threats:
+                    moves = set()
+                    for t in b_k_2_threats:
+                        moves.update(t)
+                    moves = moves - searched_moves
+                    searched_moves.update(moves)
+                    move, value, fff, alpha, beta = self.search_moves(state, depth_remaining, alpha, beta, 
+                                                                z_hashing, z_index, ff, timeout, h,
+                                                                a_piece, list(moves),
+                                                                best_move, best_value, best_fff,
+                                                                False, ff_branch_max)
+                    alpha, beta, best_move, best_value, best_fff, stop_search = self.eval_move(alpha, beta, a_piece, best_move, best_value, best_fff, move, value, fff)
+                    if stop_search: break
+                
+                if b_k_3_threats:
+                    moves = set()
+                    for t in b_k_3_threats:
+                        moves.update(t)
+                    moves = moves - searched_moves
+                    searched_moves.update(moves)
+                    move, value, fff, alpha, beta = self.search_moves(state, depth_remaining, alpha, beta, 
+                                                                z_hashing, z_index, ff, timeout, h,
+                                                                a_piece, list(moves),
+                                                                best_move, best_value, best_fff,
+                                                                False, ff_branch_max)
+                    alpha, beta, best_move, best_value, best_fff, stop_search = self.eval_move(alpha, beta, a_piece, best_move, best_value, best_fff, move, value, fff)
+                    if stop_search: break
+
                 adjacent_1_moves, adjacent_2_moves, remaining_moves = self.sort_remaining_moves(state, h, w, searched_moves)
 
                 if adjacent_1_moves:
                     searched_moves.update(adjacent_1_moves)
-                    can_ff = len(searched_moves) < ff_branch_max
-                    move, value, fff, alpha, beta = self.search_moves(state, depth_remaining, alpha, beta, 
+                    move, value, fff, alpha, beta = self.search_moves(state, depth_remaining, alpha, beta,
                                                                 z_hashing, z_index, ff, timeout, h, 
                                                                 a_piece, list(adjacent_1_moves), 
                                                                 best_move, best_value, best_fff, 
-                                                                can_ff, 1 + ff_branch_max // 2 if can_ff else ff_branch_max)
+                                                                False, ff_branch_max)
                     alpha, beta, best_move, best_value, best_fff, stop_search = self.eval_move(alpha, beta, a_piece, best_move, best_value, best_fff, move, value, fff)
                     if stop_search: break
                 
                 if adjacent_2_moves:
                     searched_moves.update(adjacent_2_moves)
-                    can_ff = len(searched_moves) < ff_branch_max
-                    move, value, fff, alpha, beta = self.search_moves(state, depth_remaining, alpha, beta, 
+                    move, value, fff, alpha, beta = self.search_moves(state, depth_remaining, alpha, beta,
                                                                 z_hashing, z_index, ff, timeout, h, 
                                                                 a_piece, list(adjacent_2_moves), 
                                                                 best_move, best_value, best_fff, 
-                                                                can_ff, 1 + ff_branch_max // 2 if can_ff else ff_branch_max)
+                                                                False, ff_branch_max)
                     alpha, beta, best_move, best_value, best_fff, stop_search = self.eval_move(alpha, beta, a_piece, best_move, best_value, best_fff, move, value, fff)
                     if stop_search: break
 
+                move_priorities = {}
+                for move in remaining_moves:
+                    temp_state = state.make_move(move)
+                    move_priorities[move] = self.static_eval(temp_state)
+                
+                moves_to_search = sorted(move_priorities.keys(), key=lambda m: move_priorities[m], reverse=(sign == 1))
+
                 move, value, fff, alpha, beta = self.search_moves(state, depth_remaining, alpha, beta, 
                                                             z_hashing, z_index, ff, timeout, h, 
-                                                            a_piece, remaining_moves, 
+                                                            a_piece, moves_to_search, 
                                                             best_move, best_value, best_fff, 
                                                             False, ff_branch_max)
 
