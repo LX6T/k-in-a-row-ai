@@ -116,15 +116,15 @@ if __name__ == '__main__':
         rows = int(sys.argv[1])
         cols = int(sys.argv[2])
         k = int(sys.argv[3])
-        init_ff_branch_max = int(sys.argv[4]) if len(sys.argv) > 4 else 10
+        init_ff_branch_max = int(sys.argv[4]) if len(sys.argv) > 4 else 0
         players = int(sys.argv[5]) if len(sys.argv) > 5 else 0  # 0 or 1
         time_limit = int(sys.argv[6]) if len(sys.argv) > 6 else None
         auto_moves = int(sys.argv[7]) if len(sys.argv) > 7 else 0
     else:
-        rows = 9
-        cols = 9
-        k = 5
-        init_ff_branch_max = 10
+        rows = 7
+        cols = 7
+        k = 4
+        init_ff_branch_max = 0
         players = 0
         time_limit = None
         auto_moves = 0
