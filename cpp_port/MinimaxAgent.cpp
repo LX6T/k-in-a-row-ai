@@ -1421,7 +1421,7 @@ GameState::Move MinimaxAgent::choose_move_impl(
 
         bool timed_out = false;
         SearchResult result;
-        depth_counter = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        depth_counter = {};
         depth_offset = current_depth;
         if (timeout && Clock::now() >= *timeout - wrapup) break;
 

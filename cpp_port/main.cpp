@@ -86,8 +86,8 @@ private:
 
 class MinimaxBot : public Agent {
 public:
-    explicit MinimaxBot(char piece, int max_depth, unsigned seed = 0)
-        : agent_(piece, max_depth, seed) {
+    explicit MinimaxBot(char piece, int max_depth, unsigned seed = 0, int init_ff_branch_max = 0)
+        : agent_(piece, max_depth, seed, init_ff_branch_max) {
             max_depth_ = max_depth;
         }
 
@@ -132,6 +132,7 @@ int main(int argc, char* argv[]) {
     int cols = 9;
     int k = 5;
     int max_depth = 4;
+    int init_ff_branch_max = 0;
     int players = 0;
 
     if (argc >= 2 && std::string(argv[1]) == "--help") {
@@ -143,7 +144,8 @@ int main(int argc, char* argv[]) {
     if (argc >= 3) cols = std::stoi(argv[2]);
     if (argc >= 4) k = std::stoi(argv[3]);
     if (argc >= 5) max_depth = std::stoi(argv[4]);
-    if (argc >= 6) players = std::stoi(argv[5]);
+    if (argc >= 6) init_ff_branch_max = std::stoi(argv[5]);
+    if (argc >= 7) players = std::stoi(argv[6]);
 
     if (rows <= 0 || cols <= 0 || k <= 0) {
         std::cerr << "Rows, columns, and k must all be positive.\n";
@@ -166,11 +168,11 @@ int main(int argc, char* argv[]) {
     std::unique_ptr<Agent> o_agent;
 
     if (players == 0) {
-        x_agent = std::make_unique<MinimaxBot>(GameState::X_PIECE, max_depth);
-        o_agent = std::make_unique<MinimaxBot>(GameState::O_PIECE, max_depth);
+        x_agent = std::make_unique<MinimaxBot>(GameState::X_PIECE, max_depth, 0, init_ff_branch_max);
+        o_agent = std::make_unique<MinimaxBot>(GameState::O_PIECE, max_depth, 0, init_ff_branch_max);
     } else if (players == 1) {
         x_agent = std::make_unique<HumanAgent>(GameState::X_PIECE);
-        o_agent = std::make_unique<MinimaxBot>(GameState::O_PIECE, max_depth);
+        o_agent = std::make_unique<MinimaxBot>(GameState::O_PIECE, max_depth, 0, init_ff_branch_max);
     } else {
         x_agent = std::make_unique<HumanAgent>(GameState::X_PIECE);
         o_agent = std::make_unique<HumanAgent>(GameState::O_PIECE);

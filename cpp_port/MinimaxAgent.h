@@ -114,7 +114,7 @@ private:
     int init_ff_branch_max_;
 
     mutable int static_eval_calls = 0;
-    mutable std::array<int, 10> depth_counter = {};
+    mutable std::array<int, 100> depth_counter = {};
     mutable int depth_offset = 0;
 
     std::vector<GameState::Move> legal_moves(const GameState& state) const;
