@@ -105,7 +105,7 @@ void GameState::print(std::ostream& os) const {
     for (int c = 0; c < cols_; ++c) {
         os << " " << c << "  ";
     }
-    
+
     os << "\n  +";
     for (int c = 0; c < cols_; ++c) {
         os << "---";

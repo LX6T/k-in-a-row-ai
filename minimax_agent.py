@@ -18,7 +18,7 @@ X_WIN = 2
 O_WIN = 3
 
 def update_wins_and_threats(k, last, count, value, wins,
-                  win_next_turn_threats, k_1_threats, 
+                  win_next_turn_threats, k_1_threats,
                   k_2_threats, k_3_threats):
     """
     Update the total value and record any k-rows close to being filled
@@ -34,16 +34,16 @@ def update_wins_and_threats(k, last, count, value, wins,
         """k-1 out of k squares are filled, player can win next turn"""
         win_next_turn_threats.add(last[0])
         return value, wins
-    
+
     if count == k - 2:
         """k-2 out of k squares are filled, player can fill to k-1 next turn"""
         k_1_threats.add((last[0], last[1]))
         return value, wins
-    
+
     if count == k - 3:
         """k-3 out of k squares are filled, player can fill to k-2 next turn"""
         k_2_threats.add((last[0], last[1], last[2]))
-    
+
     if count == k - 4:
         """k-4 out of k squares are filled, player can fill to k-3 next turn"""
         k_3_threats.add((last[0], last[1], last[2], last[3]))
@@ -122,7 +122,7 @@ def process_wins_and_threats(state, h, w, k, directions, a_piece, b_piece,
     return a_value, b_value, a_wins, b_wins
 
 def detect_threats(k_1_threats, k_2_threats, k_3_threats,
-                   win_next_next_turn_threats, 
+                   win_next_next_turn_threats,
                    win_next_next_next_turn_threats,
                    win_next_next_next_next_turn_threats):
 
@@ -154,7 +154,7 @@ def detect_threats(k_1_threats, k_2_threats, k_3_threats,
             if len(inter) == 2:
                 edge_squares = s1 ^ s2
                 overlapping_k_2_threats.append((inter, edge_squares))
-    
+
     """
     Record places where two parallel k-2 threats can be created on the same turn
     """
@@ -230,7 +230,7 @@ def detect_threats(k_1_threats, k_2_threats, k_3_threats,
                 ref = ((a, tuple(edges1), tuple(s2)),)
                 if forced != a and forced not in edges1:
                     win_next_next_next_turn_threats.add((overlap, ref))
-        
+
         """
         Something
         """
@@ -241,7 +241,7 @@ def detect_threats(k_1_threats, k_2_threats, k_3_threats,
             if len(inter1) == 1 and not (s1 & inner2) and not (s1 & outer2):
                 for k in range(m1):
                     if k == i: continue
-                    
+
                     s3, edges3 = ok2[k]
 
                     inter2 = s3 & inner2
@@ -254,9 +254,9 @@ def detect_threats(k_1_threats, k_2_threats, k_3_threats,
                         refs_a = (overlap_b, ((other_square2, tuple(outer2)), (other_square3, tuple(edges3))))
                         refs_b = (overlap_a, ((other_square2, tuple(outer2)), (other_square3, tuple(edges3))))
 
-                        win_next_next_next_next_turn_threats.add((overlap_a, refs_a)) 
+                        win_next_next_next_next_turn_threats.add((overlap_a, refs_a))
                         win_next_next_next_next_turn_threats.add((overlap_b, refs_b))
-    
+
     m = len(k_1_k_2_threats)
 
     for i in range(m):
@@ -266,12 +266,12 @@ def detect_threats(k_1_threats, k_2_threats, k_3_threats,
             inter = two1 & two2
             if len(inter) == 1:
                 overlap = next(iter(inter))
-                ref = ((square1, (one1, next(iter(two1  - {overlap})))), 
+                ref = ((square1, (one1, next(iter(two1  - {overlap})))),
                        (square2, (one2, next(iter(two2  - {overlap})))))
                 win_next_next_next_turn_threats.add((overlap, ref))
 
 def update_threats(new_square, k_1_threats, k_2_threats,
-                   win_next_turn_threats, win_next_next_turn_threats, 
+                   win_next_turn_threats, win_next_next_turn_threats,
                    win_next_next_next_turn_threats,
                    win_next_next_next_next_turn_threats):
     """
@@ -331,7 +331,7 @@ def update_threats(new_square, k_1_threats, k_2_threats,
                 break
     if to_remove:
         win_next_next_next_turn_threats.difference_update(to_remove)
-    
+
     to_remove = []
     for w in win_next_next_next_next_turn_threats:
         root, refs = w
@@ -343,7 +343,7 @@ def update_threats(new_square, k_1_threats, k_2_threats,
         win_next_next_next_next_turn_threats.difference_update(to_remove)
 
 def block_threats(blocking_square, k_1_threats, k_2_threats, k_3_threats,
-                  win_next_next_turn_threats, 
+                  win_next_next_turn_threats,
                   win_next_next_next_turn_threats,
                   win_next_next_next_next_turn_threats):
     """
@@ -396,7 +396,7 @@ def block_threats(blocking_square, k_1_threats, k_2_threats, k_3_threats,
             continue
     if to_remove:
         k_3_threats.difference_update(to_remove)
-    
+
     to_remove = []
     for w in win_next_next_next_next_turn_threats:
         root, refs = w
@@ -497,7 +497,7 @@ class MinimaxAgent(agent.Agent):
                     max_depth += 1  # Count empty squares while finding default move
                     if best_move is None:
                         best_move = (i, j)
-        
+
 
         """Limit the maximum search depth to 3"""
         max_depth = min(max_depth, 3)
@@ -520,8 +520,15 @@ class MinimaxAgent(agent.Agent):
 
             """Search for best value at current depth"""
             try:
-                move, value, deadline, result, fff = self.minimax(state, current_depth, latest_time_limit, float("-inf"), float("inf"), 
-                                                z_hashing, ff=0, ff_branch_max=self.init_ff_branch_max)
+                move, value, deadline, result, fff = self.minimax(
+                    state,
+                    current_depth,
+                    latest_time_limit,
+                    float("-inf"),
+                    float("inf"),
+                    z_hashing,
+                    ff=0,
+                    ff_branch_max=self.init_ff_branch_max)
             except Exception as ex:
                 logging.error(ex, exc_info=True)
 
@@ -536,15 +543,15 @@ class MinimaxAgent(agent.Agent):
             best_fff = fff
             best_result = "Play"
 
-            if (state.next_player == game.X_PIECE and result == X_WIN) or (state.next_player == game.O_PIECE and result == O_WIN): 
+            if (state.next_player == game.X_PIECE and result == X_WIN) or (state.next_player == game.O_PIECE and result == O_WIN):
                 best_result = "Win"
-            elif (state.next_player == game.X_PIECE and result == O_WIN) or (state.next_player == game.O_PIECE and result == X_WIN): 
+            elif (state.next_player == game.X_PIECE and result == O_WIN) or (state.next_player == game.O_PIECE and result == X_WIN):
                 best_result = "Loss"
-            elif result == BLOCK: 
+            elif result == BLOCK:
                 best_result = "Block"
 
             if not self.silent:
-                print(f"depth={current_depth}, move={best_move}, value={best_value}, deadline={best_deadline}, result={best_result}, fff={best_fff}")
+                print(f"depth={current_depth},move={best_move}, value={best_value}, deadline={best_deadline}, result={best_result}, fff={best_fff}")
 
             """Endgame or forced block detected, stop search"""
             if (result != PLAY):
@@ -572,7 +579,7 @@ class MinimaxAgent(agent.Agent):
         return best_move
 
     def minimax(self, state: game.GameState, depth_remaining: int, time_limit: float,
-                alpha: float, beta: float, z_hashing, 
+                alpha: float, beta: float, z_hashing,
                 ff: int, ff_branch_max: int):
         """
         Uses minimax to evaluate the given state and choose the best action from this state. Uses the next_player of the
@@ -641,19 +648,19 @@ class MinimaxAgent(agent.Agent):
             a_win_next_next_next_next_turn_threats = set()
             b_win_next_next_next_next_turn_threats = set()
 
-            process_wins_and_threats(state, h, w, k, directions, a_piece, b_piece, 
+            process_wins_and_threats(state, h, w, k, directions, a_piece, b_piece,
                                     a_win_next_turn_threats, b_win_next_turn_threats,
-                                    a_k_1_threats, b_k_1_threats, 
-                                    a_k_2_threats, b_k_2_threats, 
+                                    a_k_1_threats, b_k_1_threats,
+                                    a_k_2_threats, b_k_2_threats,
                                     a_k_3_threats, b_k_3_threats)
 
             detect_threats(a_k_1_threats, a_k_2_threats, a_k_3_threats,
-                        a_win_next_next_turn_threats, 
+                        a_win_next_next_turn_threats,
                         a_win_next_next_next_turn_threats,
                         a_win_next_next_next_next_turn_threats)
 
             detect_threats(b_k_1_threats, b_k_2_threats, b_k_3_threats,
-                        b_win_next_next_turn_threats, 
+                        b_win_next_next_turn_threats,
                         b_win_next_next_next_turn_threats,
                         b_win_next_next_next_next_turn_threats)
 
@@ -664,40 +671,40 @@ class MinimaxAgent(agent.Agent):
                 if a_win_next_turn_threats:
                     searched_moves.update(a_win_next_turn_threats)
                     best_move, best_value, best_deadline, best_result, best_fff, alpha, beta = self.search_moves(
-                                                                    state, depth_remaining, alpha, beta, 
-                                                                    z_hashing, z_index, ff, timeout, h, 
-                                                                    a_piece, list(a_win_next_turn_threats), 
-                                                                    best_move, best_value, best_deadline, best_result, best_fff, 
+                                                                    state, depth_remaining, alpha, beta,
+                                                                    z_hashing, z_index, ff, timeout, h,
+                                                                    a_piece, list(a_win_next_turn_threats),
+                                                                    best_move, best_value, best_deadline, best_result, best_fff,
                                                                     False, ff_branch_max)
                     break
-                
+
                 if b_win_next_turn_threats:
                     searched_moves.update(b_win_next_turn_threats)
                     best_move, best_value, best_deadline, best_result, best_fff, alpha, beta = self.search_moves(
-                                                                    state, depth_remaining, alpha, beta, 
-                                                                    z_hashing, z_index, ff, timeout, h, 
-                                                                    a_piece, list(b_win_next_turn_threats), 
-                                                                    best_move, best_value, best_deadline, best_result, best_fff, 
+                                                                    state, depth_remaining, alpha, beta,
+                                                                    z_hashing, z_index, ff, timeout, h,
+                                                                    a_piece, list(b_win_next_turn_threats),
+                                                                    best_move, best_value, best_deadline, best_result, best_fff,
                                                                     len(searched_moves) < ff_branch_max,
-                                                                    ff_branch_max)    
+                                                                    ff_branch_max)
                     if best_result == PLAY:
                         best_result = BLOCK
                     break
-                
+
                 if a_win_next_next_turn_threats:
                     moves = {t[0] for t in a_win_next_next_turn_threats}
                     searched_moves.update(moves)
                     move, value, deadline, result, fff, alpha, beta = self.search_moves(
-                                                                    state, depth_remaining, alpha, beta, 
-                                                                z_hashing, z_index, ff, timeout, h, 
-                                                                a_piece, list(moves), 
-                                                                best_move, best_value, best_deadline, best_result, best_fff, 
+                                                                    state, depth_remaining, alpha, beta,
+                                                                z_hashing, z_index, ff, timeout, h,
+                                                                a_piece, list(moves),
+                                                                best_move, best_value, best_deadline, best_result, best_fff,
                                                                 len(searched_moves) < ff_branch_max,
                                                                 ff_branch_max)
-                    
+
                     alpha, beta, best_move, best_value, best_deadline, best_result, best_fff, stop_search = self.eval_move(alpha, beta, a_piece, best_move, best_value, best_deadline, best_result, best_fff, move, value, deadline, result, fff)
                     if stop_search: break
-                
+
                 if b_win_next_next_turn_threats:
                     moves = {x[0] for x in b_win_next_next_turn_threats}
                     for x in b_win_next_next_turn_threats:
@@ -706,28 +713,28 @@ class MinimaxAgent(agent.Agent):
                         moves.update(t)
                     searched_moves.update(moves)
                     move, value, deadline, result, fff, alpha, beta = self.search_moves(
-                                                                state, depth_remaining, alpha, beta, 
-                                                                z_hashing, z_index, ff, timeout, h, 
-                                                                a_piece, list(moves), 
-                                                                best_move, best_value, best_deadline, best_result, best_fff, 
+                                                                state, depth_remaining, alpha, beta,
+                                                                z_hashing, z_index, ff, timeout, h,
+                                                                a_piece, list(moves),
+                                                                best_move, best_value, best_deadline, best_result, best_fff,
                                                                 len(searched_moves) < ff_branch_max,
                                                                 ff_branch_max)
                     alpha, beta, best_move, best_value, best_deadline, best_result, best_fff, stop_search = self.eval_move(alpha, beta, a_piece, best_move, best_value, best_deadline, best_result, best_fff, move, value, deadline, result, fff)
                     break
-                
+
                 if a_win_next_next_next_turn_threats:
                     moves = {t[0] for t in a_win_next_next_next_turn_threats}
                     searched_moves.update(moves)
                     move, value, deadline, result, fff, alpha, beta = self.search_moves(
-                                                                state, depth_remaining, alpha, beta, 
-                                                                z_hashing, z_index, ff, timeout, h, 
-                                                                a_piece, list(moves), 
-                                                                best_move, best_value, best_deadline, best_result, best_fff, 
+                                                                state, depth_remaining, alpha, beta,
+                                                                z_hashing, z_index, ff, timeout, h,
+                                                                a_piece, list(moves),
+                                                                best_move, best_value, best_deadline, best_result, best_fff,
                                                                 len(searched_moves) < ff_branch_max,
                                                                 ff_branch_max)
                     alpha, beta, best_move, best_value, best_deadline, best_result, best_fff, stop_search = self.eval_move(alpha, beta, a_piece, best_move, best_value, best_deadline, best_result, best_fff, move, value, deadline, result, fff)
                     if stop_search: break
-                
+
                 if b_win_next_next_next_turn_threats:
                     moves = set()
                     for b_win_nnnt_t in b_win_next_next_next_turn_threats:
@@ -744,28 +751,28 @@ class MinimaxAgent(agent.Agent):
                         moves.update(t)
                     searched_moves.update(moves)
                     move, value, deadline, result, fff, alpha, beta = self.search_moves(
-                                                                state, depth_remaining, alpha, beta, 
-                                                                z_hashing, z_index, ff, timeout, h, 
-                                                                a_piece, list(moves), 
-                                                                best_move, best_value, best_deadline, best_result, best_fff, 
+                                                                state, depth_remaining, alpha, beta,
+                                                                z_hashing, z_index, ff, timeout, h,
+                                                                a_piece, list(moves),
+                                                                best_move, best_value, best_deadline, best_result, best_fff,
                                                                 len(searched_moves) < ff_branch_max,
                                                                 ff_branch_max)
                     alpha, beta, best_move, best_value, best_deadline, best_result, best_fff, stop_search = self.eval_move(alpha, beta, a_piece, best_move, best_value, best_deadline, best_result, best_fff, move, value, deadline, result, fff)
                     break
-                
+
                 if a_win_next_next_next_next_turn_threats:
                     moves = {t[0] for t in a_win_next_next_next_next_turn_threats}
                     searched_moves.update(moves)
                     move, value, deadline, result, fff, alpha, beta = self.search_moves(
-                                                                state, depth_remaining, alpha, beta, 
-                                                                z_hashing, z_index, ff, timeout, h, 
-                                                                a_piece, list(moves), 
-                                                                best_move, best_value, best_deadline, best_result, best_fff, 
+                                                                state, depth_remaining, alpha, beta,
+                                                                z_hashing, z_index, ff, timeout, h,
+                                                                a_piece, list(moves),
+                                                                best_move, best_value, best_deadline, best_result, best_fff,
                                                                 len(searched_moves) < ff_branch_max,
                                                                 ff_branch_max)
                     alpha, beta, best_move, best_value, best_deadline, best_result, best_fff, stop_search = self.eval_move(alpha, beta, a_piece, best_move, best_value, best_deadline, best_result, best_fff, move, value, deadline, result, fff)
                     if stop_search: break
-                
+
                 if b_win_next_next_next_next_turn_threats:
                     moves = set()
                     for b_win_nnnnt_t in b_win_next_next_next_next_turn_threats:
@@ -782,10 +789,10 @@ class MinimaxAgent(agent.Agent):
                         moves.update(t)
                     searched_moves.update(moves)
                     move, value, deadline, result, fff, alpha, beta = self.search_moves(
-                                                                state, depth_remaining, alpha, beta, 
-                                                                z_hashing, z_index, ff, timeout, h, 
-                                                                a_piece, list(moves), 
-                                                                best_move, best_value, best_deadline, best_result, best_fff, 
+                                                                state, depth_remaining, alpha, beta,
+                                                                z_hashing, z_index, ff, timeout, h,
+                                                                a_piece, list(moves),
+                                                                best_move, best_value, best_deadline, best_result, best_fff,
                                                                 len(searched_moves) < ff_branch_max,
                                                                 ff_branch_max)
                     alpha, beta, best_move, best_value, best_deadline, best_result, best_fff, stop_search = self.eval_move(alpha, beta, a_piece, best_move, best_value, best_deadline, best_result, best_fff, move, value, deadline, result, fff)
@@ -798,14 +805,14 @@ class MinimaxAgent(agent.Agent):
                     moves = moves - searched_moves
                     searched_moves.update(moves)
                     move, value, deadline, result, fff, alpha, beta = self.search_moves(
-                                                                state, depth_remaining, alpha, beta, 
+                                                                state, depth_remaining, alpha, beta,
                                                                 z_hashing, z_index, ff, timeout, h,
                                                                 a_piece, list(moves),
                                                                 best_move, best_value, best_deadline, best_result, best_fff,
                                                                 len(searched_moves) < ff_branch_max, ff_branch_max)
                     alpha, beta, best_move, best_value, best_deadline, best_result, best_fff, stop_search = self.eval_move(alpha, beta, a_piece, best_move, best_value, best_deadline, best_result, best_fff, move, value, deadline, result, fff)
                     if stop_search: break
-                
+
                 if a_k_2_threats:
                     moves = set()
                     for t in a_k_2_threats:
@@ -813,14 +820,14 @@ class MinimaxAgent(agent.Agent):
                     moves = moves - searched_moves
                     searched_moves.update(moves)
                     move, value, deadline, result, fff, alpha, beta = self.search_moves(
-                                                                state, depth_remaining, alpha, beta, 
+                                                                state, depth_remaining, alpha, beta,
                                                                 z_hashing, z_index, ff, timeout, h,
                                                                 a_piece, list(moves),
                                                                 best_move, best_value, best_deadline, best_result, best_fff,
                                                                 False, ff_branch_max)
                     alpha, beta, best_move, best_value, best_deadline, best_result, best_fff, stop_search = self.eval_move(alpha, beta, a_piece, best_move, best_value, best_deadline, best_result, best_fff, move, value, deadline, result, fff)
                     if stop_search: break
-                
+
                 if a_k_3_threats:
                     moves = set()
                     for t in a_k_3_threats:
@@ -828,7 +835,7 @@ class MinimaxAgent(agent.Agent):
                     moves = moves - searched_moves
                     searched_moves.update(moves)
                     move, value, deadline, result, fff, alpha, beta = self.search_moves(
-                                                                state, depth_remaining, alpha, beta, 
+                                                                state, depth_remaining, alpha, beta,
                                                                 z_hashing, z_index, ff, timeout, h,
                                                                 a_piece, list(moves),
                                                                 best_move, best_value, best_deadline, best_result, best_fff,
@@ -843,14 +850,14 @@ class MinimaxAgent(agent.Agent):
                     moves = moves - searched_moves
                     searched_moves.update(moves)
                     move, value, deadline, result, fff, alpha, beta = self.search_moves(
-                                                                state, depth_remaining, alpha, beta, 
+                                                                state, depth_remaining, alpha, beta,
                                                                 z_hashing, z_index, ff, timeout, h,
                                                                 a_piece, list(moves),
                                                                 best_move, best_value, best_deadline, best_result, best_fff,
                                                                 False, ff_branch_max)
                     alpha, beta, best_move, best_value, best_deadline, best_result, best_fff, stop_search = self.eval_move(alpha, beta, a_piece, best_move, best_value, best_deadline, best_result, best_fff, move, value, deadline, result, fff)
                     if stop_search: break
-                
+
                 if b_k_2_threats:
                     moves = set()
                     for t in b_k_2_threats:
@@ -858,14 +865,14 @@ class MinimaxAgent(agent.Agent):
                     moves = moves - searched_moves
                     searched_moves.update(moves)
                     move, value, deadline, result, fff, alpha, beta = self.search_moves(
-                                                                state, depth_remaining, alpha, beta, 
+                                                                state, depth_remaining, alpha, beta,
                                                                 z_hashing, z_index, ff, timeout, h,
                                                                 a_piece, list(moves),
                                                                 best_move, best_value, best_deadline, best_result, best_fff,
                                                                 False, ff_branch_max)
                     alpha, beta, best_move, best_value, best_deadline, best_result, best_fff, stop_search = self.eval_move(alpha, beta, a_piece, best_move, best_value, best_deadline, best_result, best_fff, move, value, deadline, result, fff)
                     if stop_search: break
-                
+
                 if b_k_3_threats:
                     moves = set()
                     for t in b_k_3_threats:
@@ -873,7 +880,7 @@ class MinimaxAgent(agent.Agent):
                     moves = moves - searched_moves
                     searched_moves.update(moves)
                     move, value, deadline, result, fff, alpha, beta = self.search_moves(
-                                                                state, depth_remaining, alpha, beta, 
+                                                                state, depth_remaining, alpha, beta,
                                                                 z_hashing, z_index, ff, timeout, h,
                                                                 a_piece, list(moves),
                                                                 best_move, best_value, best_deadline, best_result, best_fff,
@@ -886,21 +893,21 @@ class MinimaxAgent(agent.Agent):
                 if adjacent_1_moves:
                     searched_moves.update(adjacent_1_moves)
                     move, value, deadline, result, fff, alpha, beta = self.search_moves(
-                                                                state, depth_remaining, alpha, beta, 
-                                                                z_hashing, z_index, ff, timeout, h, 
-                                                                a_piece, list(adjacent_1_moves), 
-                                                                best_move, best_value, best_deadline, best_result, best_fff, 
+                                                                state, depth_remaining, alpha, beta,
+                                                                z_hashing, z_index, ff, timeout, h,
+                                                                a_piece, list(adjacent_1_moves),
+                                                                best_move, best_value, best_deadline, best_result, best_fff,
                                                                 False, ff_branch_max)
                     alpha, beta, best_move, best_value, best_deadline, best_result, best_fff, stop_search = self.eval_move(alpha, beta, a_piece, best_move, best_value, best_deadline, best_result, best_fff, move, value, deadline, result, fff)
                     if stop_search: break
-                
+
                 if adjacent_2_moves:
                     searched_moves.update(adjacent_2_moves)
                     move, value, deadline, result, fff, alpha, beta = self.search_moves(
-                                                                state, depth_remaining, alpha, beta, 
-                                                                z_hashing, z_index, ff, timeout, h, 
-                                                                a_piece, list(adjacent_2_moves), 
-                                                                best_move, best_value, best_deadline, best_result, best_fff, 
+                                                                state, depth_remaining, alpha, beta,
+                                                                z_hashing, z_index, ff, timeout, h,
+                                                                a_piece, list(adjacent_2_moves),
+                                                                best_move, best_value, best_deadline, best_result, best_fff,
                                                                 False, ff_branch_max)
                     alpha, beta, best_move, best_value, best_deadline, best_result, best_fff, stop_search = self.eval_move(alpha, beta, a_piece, best_move, best_value, best_deadline, best_result, best_fff, move, value, deadline, result, fff)
                     if stop_search: break
@@ -910,14 +917,14 @@ class MinimaxAgent(agent.Agent):
                     temp_state = state.make_move(move)
                     temp_value, _, _ = self.static_eval(temp_state)
                     move_priorities[move] = temp_value
-                
+
                 moves_to_search = sorted(move_priorities.keys(), key=lambda m: move_priorities[m], reverse=(sign == 1))
 
                 move, value, deadline, result, fff, alpha, beta = self.search_moves(
-                                                            state, depth_remaining, alpha, beta, 
-                                                            z_hashing, z_index, ff, timeout, h, 
-                                                            a_piece, moves_to_search, 
-                                                            best_move, best_value, best_deadline, best_result, best_fff, 
+                                                            state, depth_remaining, alpha, beta,
+                                                            z_hashing, z_index, ff, timeout, h,
+                                                            a_piece, moves_to_search,
+                                                            best_move, best_value, best_deadline, best_result, best_fff,
                                                             False, ff_branch_max)
 
                 if sign * value > sign * best_value:
@@ -946,7 +953,7 @@ class MinimaxAgent(agent.Agent):
                     nx, ny = fx + dx, fy + dy
                     if 0 <= nx < w and 0 <= ny < h and (nx, ny) in empty_moves:
                         adjacent_1_moves.add((nx, ny))
-                    
+
             for dx in [-2, 2]:
                 for dy in range(-2, 3):
                     nx, ny = fx + dx, fy + dy
@@ -982,13 +989,13 @@ class MinimaxAgent(agent.Agent):
                 beta = min(beta, best_value)
         return alpha,beta,best_move,best_value,best_deadline,best_result,best_fff,stop_search
 
-    def search_moves(self, state, depth_remaining, alpha, beta, 
-                     z_hashing, z_index, ff, timeout, h, a_piece, 
-                     moves_to_search, best_move, best_value, best_deadline, best_result, best_fff, 
+    def search_moves(self, state, depth_remaining, alpha, beta,
+                     z_hashing, z_index, ff, timeout, h, a_piece,
+                     moves_to_search, best_move, best_value, best_deadline, best_result, best_fff,
                      can_fast_forward, ff_branch_max):
-        
+
         (z_table, z_memory, z_key) = z_hashing
-        
+
         for move in moves_to_search:
             i, j = move
             current_time = time.perf_counter()
@@ -1000,7 +1007,7 @@ class MinimaxAgent(agent.Agent):
             """Play A in square (i,j), update Zobrist hash"""
             new_state = state.make_move(move)
             new_z_key = z_key ^ z_table[i * h + j][z_index] if z_hashing else None
-                
+
             """Find the value of the new state"""
             if new_z_key and new_z_key in z_memory:
                 _, value, deadline, result, fff = z_memory[new_z_key]
@@ -1009,10 +1016,10 @@ class MinimaxAgent(agent.Agent):
                 new_depth_remaining = depth_remaining if can_fast_forward else depth_remaining - 1
                 new_ff = ff + 1 if can_fast_forward else ff
                 new_ff_branch_max = ff_branch_max - 1 if can_fast_forward else ff_branch_max
-                
+
                 self.full_squares.add(move)
                 _, value, deadline, result, fff = self.minimax(new_state, new_depth_remaining, new_time_limit,
-                                                alpha, beta, (z_table, z_memory, new_z_key), 
+                                                alpha, beta, (z_table, z_memory, new_z_key),
                                                 new_ff, new_ff_branch_max)
                 self.full_squares.remove(move)
 
@@ -1022,7 +1029,7 @@ class MinimaxAgent(agent.Agent):
 
             """Update best move, alpha and beta"""
             alpha, beta, best_move, best_value, best_deadline, best_result, best_fff, stop_search = self.eval_move(alpha, beta, a_piece, best_move, best_value, best_deadline, best_result, best_fff, move, value, deadline, result, fff)
-            if stop_search: 
+            if stop_search:
                 break
 
         best_result = PLAY if best_result == BLOCK else best_result
@@ -1066,12 +1073,12 @@ class MinimaxAgent(agent.Agent):
         a_win_next_next_next_next_turn_threats = set()
         b_win_next_next_next_next_turn_threats = set()
 
-        a_value, b_value, a_wins, b_wins = process_wins_and_threats(state, h, w, k, directions, a_piece, b_piece, 
+        a_value, b_value, a_wins, b_wins = process_wins_and_threats(state, h, w, k, directions, a_piece, b_piece,
                                                             a_win_next_turn_threats, b_win_next_turn_threats,
-                                                            a_k_1_threats, b_k_1_threats, 
-                                                            a_k_2_threats, b_k_2_threats, 
+                                                            a_k_1_threats, b_k_1_threats,
+                                                            a_k_2_threats, b_k_2_threats,
                                                             a_k_3_threats, b_k_3_threats)
-     
+
         a_win_value = win_value if a_piece == game.X_PIECE else -win_value
         b_win_value = -a_win_value
         a_win_result = X_WIN if a_piece == game.X_PIECE else O_WIN
@@ -1081,7 +1088,7 @@ class MinimaxAgent(agent.Agent):
         ===============================================
         ====== A TO PLAY NEXT, B HAS JUST PLAYED ======
         ===============================================
-                    Predict any forced wins             
+                    Predict any forced wins
         """
         if a_wins >= 1:
             """
@@ -1108,38 +1115,38 @@ class MinimaxAgent(agent.Agent):
             """
             return b_win_value, 3, b_win_result
         else:
-            
+
             detect_threats(a_k_1_threats, a_k_2_threats, a_k_3_threats,
-                       a_win_next_next_turn_threats, 
+                       a_win_next_next_turn_threats,
                        a_win_next_next_next_turn_threats,
                        a_win_next_next_next_next_turn_threats)
 
             detect_threats(b_k_1_threats, b_k_2_threats, b_k_3_threats,
-                       b_win_next_next_turn_threats, 
+                       b_win_next_next_turn_threats,
                        b_win_next_next_next_turn_threats,
                        b_win_next_next_next_next_turn_threats)
-            
-            return self.calculate_value(state, h, w, k, directions, 
-                                        a_piece, b_piece, a_sign, b_sign, a_value, b_value, a_wins, b_wins, 
-                                        a_win_next_turn_threats, b_win_next_turn_threats, 
-                                        a_win_next_next_turn_threats, b_win_next_next_turn_threats, 
-                                        a_win_next_next_next_turn_threats, b_win_next_next_next_turn_threats, 
+
+            return self.calculate_value(state, h, w, k, directions,
+                                        a_piece, b_piece, a_sign, b_sign, a_value, b_value, a_wins, b_wins,
+                                        a_win_next_turn_threats, b_win_next_turn_threats,
+                                        a_win_next_next_turn_threats, b_win_next_next_turn_threats,
+                                        a_win_next_next_next_turn_threats, b_win_next_next_next_turn_threats,
                                         a_win_next_next_next_next_turn_threats, b_win_next_next_next_next_turn_threats,
-                                        a_k_1_threats, b_k_1_threats, 
-                                        a_k_2_threats, b_k_2_threats, 
-                                        a_k_3_threats, b_k_3_threats, 
+                                        a_k_1_threats, b_k_1_threats,
+                                        a_k_2_threats, b_k_2_threats,
+                                        a_k_3_threats, b_k_3_threats,
                                         a_win_value, b_win_value,
                                         a_win_result, b_win_result)
 
-    def calculate_value(self, state, h, w, k, directions, 
-                            a_piece, b_piece, a_sign, b_sign, a_value, b_value, a_wins, b_wins, 
-                            a_win_next_turn_threats, b_win_next_turn_threats, 
-                            a_win_next_next_turn_threats, b_win_next_next_turn_threats, 
-                            a_win_next_next_next_turn_threats, b_win_next_next_next_turn_threats, 
+    def calculate_value(self, state, h, w, k, directions,
+                            a_piece, b_piece, a_sign, b_sign, a_value, b_value, a_wins, b_wins,
+                            a_win_next_turn_threats, b_win_next_turn_threats,
+                            a_win_next_next_turn_threats, b_win_next_next_turn_threats,
+                            a_win_next_next_next_turn_threats, b_win_next_next_next_turn_threats,
                             a_win_next_next_next_next_turn_threats, b_win_next_next_next_next_turn_threats,
-                            a_k_1_threats, b_k_1_threats, 
-                            a_k_2_threats, b_k_2_threats, 
-                            a_k_3_threats, b_k_3_threats, 
+                            a_k_1_threats, b_k_1_threats,
+                            a_k_2_threats, b_k_2_threats,
+                            a_k_3_threats, b_k_3_threats,
                             a_win_value, b_win_value,
                             a_win_result, b_win_result):
         """
@@ -1161,9 +1168,9 @@ class MinimaxAgent(agent.Agent):
                 fast_forward_counter += 1
 
                 update_threats(
-                            blocking_square, a_k_1_threats, a_k_2_threats, 
-                            a_win_next_turn_threats, 
-                            a_win_next_next_turn_threats, 
+                            blocking_square, a_k_1_threats, a_k_2_threats,
+                            a_win_next_turn_threats,
+                            a_win_next_next_turn_threats,
                             a_win_next_next_next_turn_threats,
                             a_win_next_next_next_next_turn_threats)
 
@@ -1206,17 +1213,17 @@ class MinimaxAgent(agent.Agent):
                         if a_count > 0 and not a_blocked:
                             a_value, a_wins = update_wins_and_threats(
                                 k, last, a_count, a_value, a_wins,
-                                a_win_next_turn_threats, a_k_1_threats, 
+                                a_win_next_turn_threats, a_k_1_threats,
                                 a_k_2_threats, a_k_3_threats
                             )
 
                 detect_threats(a_k_1_threats, a_k_2_threats, a_k_3_threats,
-                            a_win_next_next_turn_threats, 
+                            a_win_next_next_turn_threats,
                             a_win_next_next_next_turn_threats,
                             a_win_next_next_next_next_turn_threats)
 
                 block_threats(blocking_square, b_k_1_threats, b_k_2_threats, b_k_3_threats,
-                            b_win_next_next_turn_threats, 
+                            b_win_next_next_turn_threats,
                             b_win_next_next_next_turn_threats,
                             b_win_next_next_next_next_turn_threats)
 
@@ -1258,7 +1265,7 @@ class MinimaxAgent(agent.Agent):
                     """
                     B has multiple wins on their next turn,
                     A can only block one of them, B wins on the following turn
-                    B wins in 3 moves after fast forward (ff-BAB)         
+                    B wins in 3 moves after fast forward (ff-BAB)
                     """
                     return b_win_value, 3 + fast_forward_counter, b_win_result
                 break
@@ -1303,9 +1310,9 @@ class MinimaxAgent(agent.Agent):
                 B can play a piece such that they have multiple wins on their next next turn,
                 A cannot block all of them, B wins in the end
                 B wins in 5 moves after fast forward (ff-BABAB)
-                
+
                 Example:
-                
+
                 |   |   |   |   |   |   |       |   |   |   |   |   |   |       |   |   |   |   |   |   |
                 |   | B | B |[B]|   |   |       |   | B | B | B |[X]|   |       |   | B | B | B | X |   |
                 |   |   |   | B |   |   |  -->  |   |   |   | B |   |   |  -->  |   |   |   | B |   |   |
@@ -1319,7 +1326,7 @@ class MinimaxAgent(agent.Agent):
                                             -->  |   |   |   | B |   |   |  -->  |   |   |   | B |   |   |
                                                 |   |   |   | B |   |   |       |   |   |   | B |   |   |
                                                 |   |   |   |[X]|   |   |       |   |   |   | X |   |   |
-                
+
                 """
                 return b_win_value, 5 + fast_forward_counter, b_win_result
 
@@ -1352,9 +1359,9 @@ class MinimaxAgent(agent.Agent):
                 A can play a piece such that they have multiple wins on their next next turn,
                 B cannot block all of them, A wins in the end
                 A wins in 6 moves after fast forward (ff-BABABA)
-                
+
                 Example:
-                
+
                 |   | A | A | A |[B]|   |       |   | A | A | A | B |   |       |   | A | A | A | B |   |
                 |   |   |   |   |   |   |       |   |   |   |   |   |   |       |   |   |   |   |[B]|   |
                 |   |   |   | A |   |   |  -->  |   |   |   | A |   |   |  -->  |   |   |   | A |   |   |
@@ -1368,14 +1375,14 @@ class MinimaxAgent(agent.Agent):
                                             -->  |   |   | A |   |   |   |  -->  |   |   | A |   |   |   |
                                                 |   | A | A | A |[A]|   |       |[B]| A | A | A | A |   |
                                                 |   |   |   |   |   |   |       |   |   |   |   |   |   |
-                                                
+
                                                 |   | A | A | A | B |   |
                                                 |   |   |   |   | B |   |
                                             -->  |   |   |   | A |   |   |
                                             -->  |   |   | A |   |   |   |
                                                 | B | A | A | A | A |[A]|
                                                 |   |   |   |   |   |   |
-                
+
                 """
                 return a_win_value, 6 + fast_forward_counter, a_win_result
 
@@ -1421,9 +1428,9 @@ class MinimaxAgent(agent.Agent):
                 B can play a piece such that they have at least four wins on their next next turn,
                 A can only block two of them, B wins in the end
                 B wins in 7 moves after fast forward (ff-BABABAB)
-                
+
                 Example:
-                
+
                 |   |   |   |   |   |   |       |   |   |   |   |   |   |       |   |   |   |   |   |   |
                 |   |   | B |[B]|   |   |       |   |   | B | B |[A]|   |       |   |   | B | B | A |   |
                 |   | B |   |   | B |   |  -->  |   | B |   |   | B |   |  -->  |   | B |   |   | B |   |
@@ -1437,7 +1444,7 @@ class MinimaxAgent(agent.Agent):
                                             -->  |   | B |   |   | B |   |  -->  |   | B |   |   | B |   |
                                                 |   | B | B | B |[A]|   |       |   | B | B | B | A |   |
                                                 |   |   |   |   |   |   |       |   |   |   |   |   |   |
-                
+
                                                 |   |[A]|   |   |   |   |       |   | A |   |   |   |   |
                                                 |   | B | B | B | A |   |       |   | B | B | B | A |   |
                                             -->  |   | B |   |   | B |   |  -->  |   | B |   |   | B |   |
@@ -1452,7 +1459,7 @@ class MinimaxAgent(agent.Agent):
 
             if found_win:
                 return a_win_value, 8 + fast_forward_counter, a_win_result
-        
+
         if value == 0 and len(b_win_next_next_next_next_turn_threats) >= 1 and len(a_k_1_threats) == 0:
 
             found_win = False

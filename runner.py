@@ -90,6 +90,8 @@ class GameRunner:
             print("Game ends in a draw!")
             t.runner_comment("Game ends in a draw!")
         else:
+            print("_" * 45)
+            print()
             print(state)
             print(f"Player {winner}, aka {self.agents[winner].nickname()} wins the game!")
             t.runner_comment(f"Player {winner}, aka {self.agents[winner].nickname()} wins the game!")
@@ -105,7 +107,7 @@ if __name__ == '__main__':
     This is what to change to run your own games. Some examples of starting game boards are below, but you can also add
     your own by looking at the examples in game.py. Load in whatever agents you're playing, or even use the same agent
     twice. Then construct the GameRunner and call run_game with your starting state.
-    
+
     Note: to generate pdf transcripts, you must run `pip install pyppeteer`. Otherwise an html transcript will be made.
     Remember to change the transcript name, otherwise your old transcript will be overwritten!
     """
@@ -143,7 +145,7 @@ if __name__ == '__main__':
     else:
         a1 = minimax_agent.MinimaxAgent(s, game.X_PIECE, init_ff_branch_max)
         # a1 = minimax_agent_old.MinimaxAgentOld(s, game.X_PIECE)
-    
+
     a2 = minimax_agent.MinimaxAgent(s, game.O_PIECE, init_ff_branch_max)
     # a2 = minimax_agent_old.MinimaxAgentOld(s, game.O_PIECE)
 

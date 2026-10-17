@@ -924,7 +924,7 @@ GameState::Move MinimaxAgent::choose_move_impl(
     std::cout << "_____________________________________________\n\n";
     std::cout << state << "\n";
     std::cout << "               " << state.next_player() << " TO PLAY               \n\n";
-    
+
     static_eval_calls = 0;
 
     // Default best move is first available empty space
@@ -952,12 +952,11 @@ GameState::Move MinimaxAgent::choose_move_impl(
 
     while (current_depth <= max_depth) {
 
+        bool timed_out = false;
+        SearchResult result;
         depth_counter = {0, 0, 0, 0, 0};
         depth_offset = current_depth;
-
-        if (timeout && Clock::now() >= *timeout - wrapup) {
-            break;
-        }
+        if (timeout && Clock::now() >= *timeout - wrapup) break;
 
         // Initialise Zobrist hash table
         auto z_hashing = make_zobrist_hashing(
@@ -966,24 +965,27 @@ GameState::Move MinimaxAgent::choose_move_impl(
             seed_ + static_cast<unsigned>(current_depth)
         );
 
-        bool timed_out = false;
-        SearchResult result;
-
         // Search for best value at current depth
-        result = minimax(
-            state,
-            current_depth,
-            -kInf,
-            kInf,
-            &z_hashing,
-            0,
-            init_ff_branch_max_,
-            timeout,
-            &timed_out
-        );
+        try {
+            result = minimax(
+                state,
+                current_depth,
+                -kInf,
+                kInf,
+                &z_hashing,
+                0,
+                init_ff_branch_max_,
+                timeout,
+                &timed_out
+            );
+        } catch (const std::exception& e) {
+            std::cerr << "Error during minimax search: " << e.what() << std::endl;
+            break;
+        }
 
         if (!result.completed || timed_out ||
             (timeout && Clock::now() >= *timeout - wrapup)) {
+            // Time limit reached, exit search
             break;
         }
 
@@ -1010,8 +1012,11 @@ GameState::Move MinimaxAgent::choose_move_impl(
             << ", fff=" << best_fff
             << '\n';
 
-        if (best_result != "Play")
+        // Endgame or forced block detected, stop search
+        if (best_result != "Play") {
+            std::cout << best_result << " found in " << best_deadline << " moves\n";
             break;
+        }
 
         // Search again, one layer deeper
         current_depth += 1;
@@ -1023,7 +1028,7 @@ GameState::Move MinimaxAgent::choose_move_impl(
             "no valid move found for the current board"
         );
     }
-        
+
     std::cout << "\nCalled static_eval() "
         << static_eval_calls
         << " times\n";
