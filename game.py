@@ -178,11 +178,20 @@ class GameState:
         return GameState(nboard, X_PIECE, 4)
 
     def __str__(self):
-        s = '+--' + 4 * (self.w - 1) * '-' + '-+\n'
+
+        s = "   "
+        for c in range(self.w):
+            s = s + " " + str(c) + "  "
+        s = s + "\n"
+
+
+        s = s + '  +--' + 4 * (self.w - 1) * '-' + '-+\n'
+
+        r = 0
         for row in self.board:
-            s = s + '| ' + ' | '.join(row) + ' |\n'
-        s = s + '+--' + 4 * (self.w - 1) * '-' + '-+\n'
-        s = s + self.next_player + " to play next"
+            s = s + str(r) + ' | ' + ' | '.join(row) + ' |\n'
+            r = r + 1
+        s = s + '  +--' + 4 * (self.w - 1) * '-' + '-+\n'
         return s
 
     def __repr__(self):

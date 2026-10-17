@@ -442,6 +442,7 @@ def get_squares_from_wn4_threat(threat):
 
     return squares
 
+
 class MinimaxAgent(agent.Agent):
     def __init__(self, initial_state: game.GameState, piece: str, init_ff_branch_max: int):
         super().__init__(initial_state, piece)
@@ -474,6 +475,12 @@ class MinimaxAgent(agent.Agent):
         :return: move (x,y)
         """
 
+        print("_" * 45)
+        print()
+        print(state)
+        print(" " * 15, state.next_player, "TO PLAY" , " " * 15)
+        print()
+
         h = state.h
         w = state.w
         k = state.k
@@ -497,74 +504,70 @@ class MinimaxAgent(agent.Agent):
 
         """Perform iterative deepening search until depth limit or time limit reached"""
         timeout = time.perf_counter() + time_limit if time_limit is not None else None
-        depth = 1
+        current_depth = 1
 
         print(f"static_eval={self.static_eval(state)}")
 
-        while depth <= max_depth:
+        while current_depth <= max_depth:
 
             self.depth_counter = {}
-            self.depth_offset = depth
+            self.depth_offset = current_depth
+            latest_time_limit = (timeout - time.perf_counter()) if timeout is not None else None
 
             """Initialise Zobrist hash table"""
             z_table = [[random.getrandbits(32) for _ in range(2)] for _ in range(h * w)]
             z_hashing = (z_table, dict(), 0)
 
             """Search for best value at current depth"""
-            latest_time_limit = (timeout - time.perf_counter()) if timeout is not None else None
-
             try:
-                move, value, deadline, result, fff = self.minimax(state, depth, latest_time_limit, float("-inf"), float("inf"), 
+                move, value, deadline, result, fff = self.minimax(state, current_depth, latest_time_limit, float("-inf"), float("inf"), 
                                                 z_hashing, ff=0, ff_branch_max=self.init_ff_branch_max)
             except Exception as ex:
                 logging.error(ex, exc_info=True)
 
-            if time_limit is None or time.perf_counter() < (timeout - self.wrapup_time):
-
-                """Full search complete, update best_move"""
-                best_move = move
-                best_value = value
-                best_deadline = deadline - 1
-                if (state.next_player == game.X_PIECE and result == X_WIN) or (state.next_player == game.O_PIECE and result == O_WIN): 
-                    best_result = "Win"
-                elif (state.next_player == game.X_PIECE and result == O_WIN) or (state.next_player == game.O_PIECE and result == X_WIN): 
-                    best_result = "Loss"
-                elif result == BLOCK: 
-                    best_result = "Block"
-                else: 
-                    best_result = "Play"
-                best_fff = fff
-                if not self.silent:
-                    print(f"depth={depth}, move={best_move}, value={best_value}, deadline={best_deadline}, result={best_result}, fff={best_fff}")
-
-                """Endgame or forced block detected, stop search"""
-                if (result != PLAY):
-                    if not self.silent:
-                        print(f"{best_result} found in {best_deadline} moves")
-                    break
-
-                """Search again, one layer deeper"""
-                depth += 1
-
-            else:
+            if time_limit is not None and time.perf_counter() >= (timeout - self.wrapup_time):
                 """Time limit reached, exit search"""
                 break
 
-        if not self.silent:
+            """Full search complete, update best_move"""
+            best_move = move
+            best_value = value
+            best_deadline = deadline - 1
+            best_fff = fff
+            best_result = "Play"
 
-            if timeout is not None:
-                """Report remaining time"""
-                print(f"Exited {round(timeout - time.perf_counter(), 4)} seconds remaining before timeout")
+            if (state.next_player == game.X_PIECE and result == X_WIN) or (state.next_player == game.O_PIECE and result == O_WIN): 
+                best_result = "Win"
+            elif (state.next_player == game.X_PIECE and result == O_WIN) or (state.next_player == game.O_PIECE and result == X_WIN): 
+                best_result = "Loss"
+            elif result == BLOCK: 
+                best_result = "Block"
 
-            """Report total number of static evaluations made"""
-            print()
-            print(f"Called static_eval() {self.eval_calls} times")
-            for i in range(0, 1 + max(self.depth_counter.keys())):
-                print(i, "\t|", self.depth_counter[i])
+            if not self.silent:
+                print(f"depth={current_depth}, move={best_move}, value={best_value}, deadline={best_deadline}, result={best_result}, fff={best_fff}")
 
-            self.print_board(state, best_move)
-            print("_" * 50)
-            print()
+            """Endgame or forced block detected, stop search"""
+            if (result != PLAY):
+                if not self.silent:
+                    print(f"{best_result} found in {best_deadline} moves")
+                break
+
+            """Search again, one layer deeper"""
+            current_depth += 1
+
+        """Skip logging if in silent mode"""
+        if self.silent:
+            return best_move
+
+        if timeout is not None:
+            """Report remaining time"""
+            print(f"Exited {round(timeout - time.perf_counter(), 4)} seconds remaining before timeout")
+
+        """Report total number of static evaluations made"""
+        print()
+        print(f"Called static_eval() {self.eval_calls} times")
+        for i in range(0, 1 + max(self.depth_counter.keys())):
+            print(i, "\t|", self.depth_counter[i])
 
         return best_move
 

@@ -90,7 +90,7 @@ class GameRunner:
             print("Game ends in a draw!")
             t.runner_comment("Game ends in a draw!")
         else:
-            # print(state)
+            print(state)
             print(f"Player {winner}, aka {self.agents[winner].nickname()} wins the game!")
             t.runner_comment(f"Player {winner}, aka {self.agents[winner].nickname()} wins the game!")
 
@@ -148,10 +148,6 @@ if __name__ == '__main__':
     # a2 = minimax_agent_old.MinimaxAgentOld(s, game.O_PIECE)
 
     r = GameRunner(x_agent=a1, o_agent=a2)
-
-    print(s)
-    print("_" * 50)
-    print()
 
     t_init = time.perf_counter()
     r.run_game(s, time_limit=time_limit, silent=True)
