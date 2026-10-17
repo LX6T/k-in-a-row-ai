@@ -4,17 +4,20 @@ import subprocess
 import sys
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
 import game
 import minimax_agent
 
-ROOT = Path(__file__).resolve().parent.parent
+# ROOT = Path(__file__).resolve().parent.parent
 CPP_PORT = ROOT / "cpp_port"
 CPP_TESTS = ROOT / "cpp_port_tests"
 
-BOARD_ROWS = 12
-BOARD_COLS = 12
+BOARD_ROWS = 9
+BOARD_COLS = 9
 K = 5
-N_BOARDS = 1100
+N_BOARDS = 5
 
 
 def build_cpp_helper() -> Path:

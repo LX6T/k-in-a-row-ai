@@ -86,11 +86,13 @@ private:
 
 class MinimaxBot : public Agent {
 public:
-    explicit MinimaxBot(char piece, int max_depth = 3, unsigned seed = 0)
-        : agent_(piece, max_depth, seed) {}
+    explicit MinimaxBot(char piece, int max_depth, unsigned seed = 0)
+        : agent_(piece, max_depth, seed) {
+            max_depth_ = max_depth;
+        }
 
     GameState::Move choose_move(const GameState& state) override {
-        return agent_.choose_move(state, 3);
+        return agent_.choose_move(state, max_depth_);
     }
 
     std::string name() const override {
@@ -99,18 +101,19 @@ public:
 
 private:
     MinimaxAgent agent_;
+    int max_depth_;
 };
 
-std::unique_ptr<Agent> make_agent(int type, char piece) {
-    switch (type) {
-        case 0:
-            return std::make_unique<MinimaxBot>(piece);
-        case 1:
-            return std::make_unique<HumanAgent>(piece);
-        default:
-            return std::make_unique<HumanAgent>(piece);
-    }
-}
+// std::unique_ptr<Agent> make_agent(int type, char piece) {
+//     switch (type) {
+//         case 0:
+//             return std::make_unique<MinimaxBot>(piece);
+//         case 1:
+//             return std::make_unique<HumanAgent>(piece);
+//         default:
+//             return std::make_unique<HumanAgent>(piece);
+//     }
+// }
 
 void print_usage(const char* program_name) {
     std::cout << "Usage: " << program_name << " [rows cols k players]\n"
@@ -128,6 +131,7 @@ int main(int argc, char* argv[]) {
     int rows = 9;
     int cols = 9;
     int k = 5;
+    int max_depth = 4;
     int players = 0;
 
     if (argc >= 2 && std::string(argv[1]) == "--help") {
@@ -138,7 +142,8 @@ int main(int argc, char* argv[]) {
     if (argc >= 2) rows = std::stoi(argv[1]);
     if (argc >= 3) cols = std::stoi(argv[2]);
     if (argc >= 4) k = std::stoi(argv[3]);
-    if (argc >= 5) players = std::stoi(argv[4]);
+    if (argc >= 5) max_depth = std::stoi(argv[4]);
+    if (argc >= 6) players = std::stoi(argv[5]);
 
     if (rows <= 0 || cols <= 0 || k <= 0) {
         std::cerr << "Rows, columns, and k must all be positive.\n";
@@ -161,11 +166,11 @@ int main(int argc, char* argv[]) {
     std::unique_ptr<Agent> o_agent;
 
     if (players == 0) {
-        x_agent = std::make_unique<MinimaxBot>(GameState::X_PIECE);
-        o_agent = std::make_unique<MinimaxBot>(GameState::O_PIECE);
+        x_agent = std::make_unique<MinimaxBot>(GameState::X_PIECE, max_depth);
+        o_agent = std::make_unique<MinimaxBot>(GameState::O_PIECE, max_depth);
     } else if (players == 1) {
         x_agent = std::make_unique<HumanAgent>(GameState::X_PIECE);
-        o_agent = std::make_unique<MinimaxBot>(GameState::O_PIECE);
+        o_agent = std::make_unique<MinimaxBot>(GameState::O_PIECE, max_depth);
     } else {
         x_agent = std::make_unique<HumanAgent>(GameState::X_PIECE);
         o_agent = std::make_unique<HumanAgent>(GameState::O_PIECE);

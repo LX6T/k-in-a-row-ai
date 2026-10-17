@@ -87,6 +87,67 @@ namespace {
     }
 }  // namespace
 
+using Coord = std::pair<int, int>;
+using CoordList = std::vector<Coord>;
+using CoordSet = std::set<Coord>;
+
+inline CoordSet coord_intersection(
+    const CoordSet& a, const CoordSet& b)
+{
+    CoordSet result;
+    std::set_intersection(
+        a.begin(), a.end(), b.begin(), b.end(),
+        std::inserter(result, result.end()));
+    return result;
+}
+
+inline CoordSet coord_difference(
+    const CoordSet& a, const CoordSet& b)
+{
+    CoordSet result;
+    std::set_difference(
+        a.begin(), a.end(), b.begin(), b.end(),
+        std::inserter(result, result.end()));
+    return result;
+}
+
+inline CoordSet coord_symmetric_difference(
+    const CoordSet& a, const CoordSet& b)
+{
+    CoordSet result;
+    std::set_symmetric_difference(
+        a.begin(), a.end(), b.begin(), b.end(),
+        std::inserter(result, result.end()));
+    return result;
+}
+
+inline CoordList to_coord_list(const CoordSet& squares)
+{
+    return CoordList(squares.begin(), squares.end());
+}
+
+inline bool adjacent(const Coord& a, const Coord& b)
+{
+    return std::abs(a.first - b.first) <= 1
+        && std::abs(a.second - b.second) <= 1;
+}
+
+void add_children_to_set(
+    const MinimaxAgent::WinNextNextChildren& children,
+    std::set<Coord>& moves
+) {
+    std::visit([&moves](const auto& value) {
+        using T = std::decay_t<decltype(value)>;
+
+        if constexpr (std::is_same_v<T, CoordList>) {
+            moves.insert(value.begin(), value.end());
+        } else {
+            moves.insert(value.first.begin(), value.first.end());
+            moves.insert(value.second.begin(), value.second.end());
+        }
+    }, children);
+}
+
 // make_zobrist_hashing --
 MinimaxAgent::ZobristHashing MinimaxAgent::make_zobrist_hashing(int rows, int cols, unsigned seed) {
     std::mt19937 rng(seed);
@@ -223,32 +284,22 @@ void MinimaxAgent::update_wins_and_threats(int k, const std::vector<Coord>& last
     }
     if (count == k - 1) {
         // k-1 out of k squares are filled, player can win next turn
-        if (last[0].first != -1 && last[0].second != -1) {
-            win_next_turn_threats.insert(last[0]);
-        }
+        win_next_turn_threats.insert(last[0]);
         return;
     }
     if (count == k - 2) {
         // k-2 out of k squares are filled, player can fill to k-1 next turn
-        if (last[0].first != -1 && last[0].second != -1 && last[1].first != -1 && last[1].second != -1) {
-            k_1_threats.insert(std::make_tuple(last[0], last[1]));
-        }
+        k_1_threats.insert(std::make_tuple(last[0], last[1]));
         return;
     }
     if (count == k - 3) {
         // k-3 out of k squares are filled, player can fill to k-2 next turn
-        if (last[0].first != -1 && last[0].second != -1 && last[1].first != -1 && last[1].second != -1 &&
-            last[2].first != -1 && last[2].second != -1) {
-            k_2_threats.insert(std::make_tuple(last[0], last[1], last[2]));
-        }
+        k_2_threats.insert(std::make_tuple(last[0], last[1], last[2]));
         return;
     }
     if (count == k - 4) {
         // k-4 out of k squares are filled, player can fill to k-3 next turn
-        if (last[0].first != -1 && last[0].second != -1 && last[1].first != -1 && last[1].second != -1 &&
-            last[2].first != -1 && last[2].second != -1 && last[3].first != -1 && last[3].second != -1) {
-            k_3_threats.insert(std::make_tuple(last[0], last[1], last[2], last[3]));
-        }
+        k_3_threats.insert(std::make_tuple(last[0], last[1], last[2], last[3]));
     }
 }
 
@@ -264,6 +315,7 @@ void MinimaxAgent::process_wins_and_threats(const GameState& state, int h, int w
     std::set<Threat3>& a_k_3_threats,
     std::set<Threat3>& b_k_3_threats,
     double& a_value, double& b_value, int& a_wins, int& b_wins) const {
+
     const auto& board = state.board();
     const char block_value = '-';
 
@@ -275,13 +327,14 @@ void MinimaxAgent::process_wins_and_threats(const GameState& state, int h, int w
 
         for (int i = min_row; i <= max_row; ++i) {
             for (int j = min_col; j <= max_col; ++j) {
+
                 int row = i;
                 int col = j;
                 int a_count = 0;
                 int b_count = 0;
                 bool a_blocked = false;
                 bool b_blocked = false;
-                std::vector<Coord> last(4, {-1, -1});
+                std::vector<Coord> last(4, {-11, -11});
 
                 for (int step = 0; step < k; ++step) {
                     const char piece = board[row][col];
@@ -311,11 +364,23 @@ void MinimaxAgent::process_wins_and_threats(const GameState& state, int h, int w
                 }
 
                 if (a_count > 0 && !a_blocked) {
-                    update_wins_and_threats(k, last, a_count, a_value, a_wins,
-                        a_win_next_turn_threats, a_k_1_threats, a_k_2_threats, a_k_3_threats);
+                    update_wins_and_threats(
+                        k, last, a_count,
+                        a_value, a_wins,
+                        a_win_next_turn_threats,
+                        a_k_1_threats,
+                        a_k_2_threats,
+                        a_k_3_threats
+                    );
                 } else if (b_count > 0 && !b_blocked) {
-                    update_wins_and_threats(k, last, b_count, b_value, b_wins,
-                        b_win_next_turn_threats, b_k_1_threats, b_k_2_threats, b_k_3_threats);
+                    update_wins_and_threats(
+                        k, last, b_count,
+                        b_value, b_wins,
+                        b_win_next_turn_threats,
+                        b_k_1_threats,
+                        b_k_2_threats,
+                        b_k_3_threats
+                    );
                 }
             }
         }
@@ -323,210 +388,360 @@ void MinimaxAgent::process_wins_and_threats(const GameState& state, int h, int w
 }
 
 // detect_threats --
-void MinimaxAgent::detect_threats(const std::set<Threat1>& k_1_threats,
+void MinimaxAgent::detect_threats(
+    const std::set<Threat1>& k_1_threats,
     const std::set<Threat2>& k_2_threats,
     const std::set<Threat3>& k_3_threats,
-    std::set<std::tuple<Coord, std::tuple<Coord, Coord>>>& win_next_next_turn_threats,
-    std::set<std::tuple<Coord, std::tuple<Coord, Coord, Coord>>>& win_next_next_next_turn_threats,
-    std::set<std::tuple<Coord, std::tuple<Coord, Coord, Coord, Coord>>>& win_next_next_next_next_turn_threats) const {
-    auto set_intersection = [](const std::set<Coord>& lhs, const std::set<Coord>& rhs) {
-        std::set<Coord> out;
-        std::set_intersection(lhs.begin(), lhs.end(), rhs.begin(), rhs.end(), std::inserter(out, out.begin()));
-        return out;
+    std::set<WinNextNextTurnThreat>& win_next_next_turn_threats,
+    std::set<WinNextNextNextTurnThreat>& win_next_next_next_turn_threats,
+    std::set<WinNextNextNextNextTurnThreat>& win_next_next_next_next_turn_threats
+) const
+{
+    struct OverlappingK2 {
+        CoordSet squares;
+        CoordSet edges;
     };
 
-    auto set_difference = [](const std::set<Coord>& lhs, const std::set<Coord>& rhs) {
-        std::set<Coord> out;
-        std::set_difference(lhs.begin(), lhs.end(), rhs.begin(), rhs.end(), std::inserter(out, out.begin()));
-        return out;
+    struct OverlappingK3 {
+        CoordSet squares;
+        CoordSet inner;
+        CoordSet outer;
     };
 
-    std::vector<std::set<Coord>> k_1_sets;
-    std::vector<std::set<Coord>> k_2_sets;
-    std::vector<std::set<Coord>> k_3_sets;
+    struct K1K2Threat {
+        Coord square;
+        Coord one;
+        CoordSet two;
+    };
+
+    std::vector<OverlappingK2> overlapping_k_2_threats;
+    std::vector<OverlappingK3> overlapping_k_3_threats;
+    std::vector<K1K2Threat> k_1_k_2_threats;
+
+    std::vector<CoordSet> k_1_sets;
+    std::vector<CoordSet> k_2_sets;
+    std::vector<CoordSet> k_3_sets;
 
     for (const auto& t : k_1_threats) {
-        k_1_sets.push_back(std::set<Coord>{std::get<0>(t), std::get<1>(t)});
-    }
-    for (const auto& t : k_2_threats) {
-        k_2_sets.push_back(std::set<Coord>{std::get<0>(t), std::get<1>(t), std::get<2>(t)});
-    }
-    for (const auto& t : k_3_threats) {
-        k_3_sets.push_back(std::set<Coord>{std::get<0>(t), std::get<1>(t), std::get<2>(t), std::get<3>(t)});
+        k_1_sets.emplace_back(
+            CoordSet{std::get<0>(t), std::get<1>(t)});
     }
 
-    // Record places where two win threats can be created on the same turn
+    for (const auto& t : k_2_threats) {
+        k_2_sets.emplace_back(
+            CoordSet{
+                std::get<0>(t),
+                std::get<1>(t),
+                std::get<2>(t)
+            });
+    }
+
+    for (const auto& t : k_3_threats) {
+        k_3_sets.emplace_back(
+            CoordSet{
+                std::get<0>(t),
+                std::get<1>(t),
+                std::get<2>(t),
+                std::get<3>(t)
+            });
+    }
+
+    // Record places where two win threats can be created
+    // on the same turn.
     for (const auto& s1 : k_1_sets) {
         for (const auto& s2 : k_1_sets) {
-            const auto inter = set_intersection(s1, s2);
+            CoordSet inter = coord_intersection(s1, s2);
+
             if (inter.size() == 1) {
-                const Coord overlap = *inter.begin();
-                std::set<Coord> diff1 = set_difference(s1, s2);
-                std::set<Coord> diff2 = set_difference(s2, s1);
-                std::vector<Coord> diff1_vec(diff1.begin(), diff1.end());
-                std::vector<Coord> diff2_vec(diff2.begin(), diff2.end());
-                std::vector<Coord> win_next_turn;
-                win_next_turn.insert(win_next_turn.end(), diff1_vec.begin(), diff1_vec.end());
-                win_next_turn.insert(win_next_turn.end(), diff2_vec.begin(), diff2_vec.end());
-                if (win_next_turn.size() == 2) {
-                    win_next_next_turn_threats.insert(std::make_tuple(overlap, std::make_tuple(win_next_turn[0], win_next_turn[1])));
-                }
+                Coord overlap = *inter.begin();
+                CoordSet remaining =
+                    coord_symmetric_difference(s1, s2);
+
+                win_next_next_turn_threats.insert({
+                    overlap,
+                    to_coord_list(remaining)
+                });
             }
         }
     }
 
-    // Record places where two parallel k-1 threats can be created on the same turn
-    std::vector<std::pair<std::set<Coord>, std::set<Coord>>> overlapping_k_2_threats;
+    // Record places where two parallel k-1 threats
+    // can be created on the same turn.
     for (const auto& s1 : k_2_sets) {
         for (const auto& s2 : k_2_sets) {
-            const auto inter = set_intersection(s1, s2);
+            CoordSet inter = coord_intersection(s1, s2);
+
             if (inter.size() == 2) {
-                std::set<Coord> edge_squares = set_difference(s1, s2);
-                std::set<Coord> edge_squares2 = set_difference(s2, s1);
-                edge_squares.insert(edge_squares2.begin(), edge_squares2.end());
-                overlapping_k_2_threats.emplace_back(inter, edge_squares);
+                CoordSet edge_squares =
+                    coord_symmetric_difference(s1, s2);
+
+                overlapping_k_2_threats.push_back({
+                    inter,
+                    edge_squares
+                });
             }
         }
     }
 
-    // Record places where two parallel k-2 threats can be created on the same turn
-    std::vector<std::tuple<std::set<Coord>, std::set<Coord>, std::set<Coord>>> overlapping_k_3_threats;
+    // Record places where two parallel k-2 threats
+    // can be created on the same turn.
     for (const auto& s1 : k_3_sets) {
         for (const auto& s2 : k_3_sets) {
-            const auto inter = set_intersection(s1, s2);
+            CoordSet inter = coord_intersection(s1, s2);
+
             if (inter.size() == 2 && s1.size() != 2) {
-                std::vector<Coord> overlapping_squares(inter.begin(), inter.end());
-                if (overlapping_squares.size() != 2) {
-                    continue;
-                }
-                const Coord os1 = overlapping_squares[0];
-                const Coord os2 = overlapping_squares[1];
-                if (std::abs(os1.first - os2.first) <= 1 && std::abs(os1.second - os2.second) <= 1) {
+                CoordList overlapping_squares =
+                    to_coord_list(inter);
+
+                const Coord& os1 = overlapping_squares[0];
+                const Coord& os2 = overlapping_squares[1];
+
+                if (adjacent(os1, os2)) {
                     continue;
                 }
 
-                const auto other_squares = set_difference(s1, s2);
-                std::set<Coord> inner_squares;
-                std::set<Coord> outer_squares = set_difference(s1, s2);
+                CoordSet other_squares =
+                    coord_symmetric_difference(s1, s2);
+
+                CoordSet inner_squares;
+                CoordSet outer_squares;
+
                 for (const auto& square : other_squares) {
-                    bool is_inner = false;
-                    for (const auto& overlap : inter) {
-                        if (std::abs(square.first - overlap.first) <= 1 && std::abs(square.second - overlap.second) <= 1) {
+                    for (const auto& overlap : overlapping_squares) {
+                        if (adjacent(square, overlap)) {
                             inner_squares.insert(square);
-                            is_inner = true;
-                            break;
                         }
                     }
-                    if (is_inner) {
-                        outer_squares.erase(square);
-                    }
                 }
-                overlapping_k_3_threats.emplace_back(inter, inner_squares, outer_squares);
+
+                outer_squares =
+                    coord_difference(other_squares, inner_squares);
+
+                overlapping_k_3_threats.push_back({
+                    inter,
+                    inner_squares,
+                    outer_squares
+                });
             }
         }
     }
 
-    // Record places where a win threat and a k-1 threat can be created on the same turn
-    std::vector<std::tuple<Coord, Coord, std::set<Coord>>> k_1_k_2_threats;
+    // Record places where a win threat and a k-1 threat
+    // can be created on the same turn.
     for (const auto& s1 : k_1_sets) {
         for (const auto& s2 : k_2_sets) {
-            const auto inter = set_intersection(s1, s2);
+            CoordSet inter = coord_intersection(s1, s2);
+
             if (inter.size() == 1) {
-                const Coord overlap = *inter.begin();
-                std::set<Coord> one_remaining = set_difference(s1, inter);
-                std::set<Coord> two_remaining = set_difference(s2, inter);
-                k_1_k_2_threats.emplace_back(overlap, *one_remaining.begin(), two_remaining);
+                Coord overlap = *inter.begin();
+
+                CoordSet one_remaining =
+                    coord_difference(s1, inter);
+
+                CoordSet two_remaining =
+                    coord_difference(s2, inter);
+
+                k_1_k_2_threats.push_back({
+                    overlap,
+                    *one_remaining.begin(),
+                    two_remaining
+                });
             }
         }
     }
 
-    // Higher order overlapping logic
+    // Higher-order overlapping logic.
     const auto ok2 = overlapping_k_2_threats;
     const auto ok3 = overlapping_k_3_threats;
-    const size_t m1 = ok2.size();
-    const size_t m2 = ok3.size();
 
-    for (size_t i = 0; i < m1; ++i) {
-        const auto& s1 = ok2[i].first;
-        const auto& edges1 = ok2[i].second;
+    const std::size_t m1 = ok2.size();
+    const std::size_t m2 = ok3.size();
 
-        // Record places where two sets of two parallel k-1 threats can be created on the same turn
-        for (size_t j = i + 1; j < m1; ++j) {
-            const auto& s2 = ok2[j].first;
-            const auto& edges2 = ok2[j].second;
-            const auto inter = set_intersection(s1, s2);
-            if (inter.size() == 1 && set_intersection(s1, edges2).empty()) {
-                const Coord overlap = *inter.begin();
-                std::set<Coord> s1_minus_inter = set_difference(s1, inter);
-                std::set<Coord> s2_minus_inter = set_difference(s2, inter);
-                const Coord a = *s1_minus_inter.begin();
-                const Coord b = *s2_minus_inter.begin();
-                win_next_next_next_turn_threats.insert(std::make_tuple(overlap, std::make_tuple(a, b, Coord{-1, -1})));
+    for (std::size_t i = 0; i < m1; ++i) {
+        const CoordSet& s1 = ok2[i].squares;
+        const CoordSet& edges1 = ok2[i].edges;
+
+        // Record places where two sets of two parallel
+        // k-1 threats can be created on the same turn.
+        for (std::size_t j = i + 1; j < m1; ++j) {
+            const CoordSet& s2 = ok2[j].squares;
+            const CoordSet& edges2 = ok2[j].edges;
+
+            CoordSet inter = coord_intersection(s1, s2);
+            CoordSet blocked = coord_intersection(s1, edges2);
+
+            if (inter.size() == 1 && blocked.empty()) {
+                Coord overlap = *inter.begin();
+
+                Coord a = *coord_difference(
+                    s1, CoordSet{overlap}).begin();
+
+                Coord b = *coord_difference(
+                    s2, CoordSet{overlap}).begin();
+
+                WinNextNextTurnThreat ref_a{
+                    a, to_coord_list(edges1)
+                };
+
+                WinNextNextTurnThreat ref_b{
+                    b, to_coord_list(edges2)
+                };
+
+                win_next_next_next_turn_threats.insert({
+                    overlap,
+                    {ref_a, ref_b}
+                });
             }
         }
 
-        // Record places where two parallel k-1 threats and a win threat can be created on the same turn
+        // Record places where two parallel k-1 threats
+        // and a win threat can be created on the same turn.
         for (const auto& s2 : k_1_sets) {
-            const auto inter = set_intersection(s1, s2);
+            CoordSet inter = coord_intersection(s1, s2);
+
             if (inter.size() == 1) {
-                const Coord overlap = *inter.begin();
-                std::set<Coord> s1_minus_inter = set_difference(s1, inter);
-                std::set<Coord> s2_minus_inter = set_difference(s2, inter);
-                const Coord a = *s1_minus_inter.begin();
-                const Coord forced = *s2_minus_inter.begin();
-                if (forced != a && edges1.find(forced) == edges1.end()) {
-                    win_next_next_next_turn_threats.insert(std::make_tuple(overlap, std::make_tuple(a, Coord{-1, -1}, Coord{-1, -1})));
+                Coord overlap = *inter.begin();
+
+                Coord a = *coord_difference(
+                    s1, CoordSet{overlap}).begin();
+
+                Coord forced = *coord_difference(
+                    s2, CoordSet{overlap}).begin();
+
+                WinNextNextTurnThreat ref{
+                    a,
+                    std::pair{
+                        to_coord_list(edges1),
+                        to_coord_list(s2)
+                    }
+                };
+
+                if (forced != a && !edges1.contains(forced)) {
+                    win_next_next_next_turn_threats.insert({
+                        overlap,
+                        {ref}
+                    });
                 }
             }
         }
 
-        // Something
-        for (size_t j = 0; j < m2; ++j) {
-            const auto& s2 = std::get<0>(ok3[j]);
-            const auto& inner2 = std::get<1>(ok3[j]);
-            const auto& outer2 = std::get<2>(ok3[j]);
-            const auto inter1 = set_intersection(s1, s2);
-            if (inter1.size() != 1 || !set_intersection(s1, inner2).empty() || !set_intersection(s1, outer2).empty()) {
+        // Higher-order interaction between overlapping k-2
+        // and k-3 threats.
+        for (std::size_t j = 0; j < m2; ++j) {
+            const CoordSet& s2 = ok3[j].squares;
+            const CoordSet& inner2 = ok3[j].inner;
+            const CoordSet& outer2 = ok3[j].outer;
+
+            CoordSet inter1 = coord_intersection(s1, s2);
+
+            if (inter1.size() != 1
+                || !coord_intersection(s1, inner2).empty()
+                || !coord_intersection(s1, outer2).empty()) {
                 continue;
             }
 
-            for (size_t k = 0; k < m1; ++k) {
+            for (std::size_t k = 0; k < m1; ++k) {
                 if (k == i) {
                     continue;
                 }
-                const auto& s3 = ok2[k].first;
-                const auto inter2 = set_intersection(s3, inner2);
-                if (inter2.size() == 1 && set_intersection(s3, s2).empty() && set_intersection(s3, outer2).empty()) {
-                    const Coord overlap_a = *inter1.begin();
-                    const Coord overlap_b = *inter2.begin();
-                    std::set<Coord> s2_minus_overlap_a = set_difference(s2, std::set<Coord>{overlap_a});
-                    std::set<Coord> s3_minus_overlap_b = set_difference(s3, std::set<Coord>{overlap_b});
-                    const Coord other_square2 = *s2_minus_overlap_a.begin();
-                    const Coord other_square3 = *s3_minus_overlap_b.begin();
 
-                    win_next_next_next_next_turn_threats.insert(std::make_tuple(overlap_a, std::make_tuple(overlap_b, other_square2, other_square3, Coord{-1, -1})));
-                    win_next_next_next_next_turn_threats.insert(std::make_tuple(overlap_b, std::make_tuple(overlap_a, other_square2, other_square3, Coord{-1, -1})));
+                const CoordSet& s3 = ok2[k].squares;
+                const CoordSet& edges3 = ok2[k].edges;
+
+                CoordSet inter2 = coord_intersection(s3, inner2);
+
+                if (inter2.size() != 1
+                    || !coord_intersection(s3, s2).empty()
+                    || !coord_intersection(s3, outer2).empty()) {
+                    continue;
                 }
+
+                Coord overlap_a = *inter1.begin();
+                Coord overlap_b = *inter2.begin();
+
+                Coord other_square2 = *coord_difference(
+                    s2, CoordSet{overlap_a}).begin();
+
+                Coord other_square3 = *coord_difference(
+                    s3, CoordSet{overlap_b}).begin();
+
+                std::vector<WinNextNextTurnThreat> refs_a{
+                    WinNextNextTurnThreat{
+                        other_square2,
+                        to_coord_list(outer2)
+                    },
+                    WinNextNextTurnThreat{
+                        other_square3,
+                        to_coord_list(edges3)
+                    }
+                };
+
+                std::vector<WinNextNextTurnThreat> refs_b{
+                    WinNextNextTurnThreat{
+                        other_square2,
+                        to_coord_list(outer2)
+                    },
+                    WinNextNextTurnThreat{
+                        other_square3,
+                        to_coord_list(edges3)
+                    }
+                };
+
+                WinNextNextNextNextTurnThreat threat_a;
+                threat_a.root = overlap_a;
+                threat_a.first_ref = overlap_b;
+                threat_a.refs = refs_a;
+                win_next_next_next_next_turn_threats.insert(threat_a);
+
+                WinNextNextNextNextTurnThreat threat_b;
+                threat_b.root = overlap_b;
+                threat_b.first_ref = overlap_a;
+                threat_b.refs = refs_b;
+                win_next_next_next_next_turn_threats.insert(threat_b);
             }
         }
     }
 
-    const size_t m = k_1_k_2_threats.size();
-    for (size_t i = 0; i < m; ++i) {
-        const Coord square1 = std::get<0>(k_1_k_2_threats[i]);
-        const Coord one1 = std::get<1>(k_1_k_2_threats[i]);
-        const std::set<Coord>& two1 = std::get<2>(k_1_k_2_threats[i]);
-        for (size_t j = i + 1; j < m; ++j) {
-            const Coord square2 = std::get<0>(k_1_k_2_threats[j]);
-            const Coord one2 = std::get<1>(k_1_k_2_threats[j]);
-            const std::set<Coord>& two2 = std::get<2>(k_1_k_2_threats[j]);
-            const auto inter = set_intersection(two1, two2);
+    const std::size_t m = k_1_k_2_threats.size();
+
+    for (std::size_t i = 0; i < m; ++i) {
+        const auto& t1 = k_1_k_2_threats[i];
+
+        const Coord& square1 = t1.square;
+        const Coord& one1 = t1.one;
+        const CoordSet& two1 = t1.two;
+
+        for (std::size_t j = i + 1; j < m; ++j) {
+            const auto& t2 = k_1_k_2_threats[j];
+
+            const Coord& square2 = t2.square;
+            const Coord& one2 = t2.one;
+            const CoordSet& two2 = t2.two;
+
+            CoordSet inter = coord_intersection(two1, two2);
+
             if (inter.size() == 1) {
-                const Coord overlap = *inter.begin();
-                std::set<Coord> two1_minus_overlap = set_difference(two1, std::set<Coord>{overlap});
-                std::set<Coord> two2_minus_overlap = set_difference(two2, std::set<Coord>{overlap});
-                win_next_next_next_turn_threats.insert(std::make_tuple(overlap, std::make_tuple(square1, one1, *two1_minus_overlap.begin())));
-                win_next_next_next_turn_threats.insert(std::make_tuple(overlap, std::make_tuple(square2, one2, *two2_minus_overlap.begin())));
+                Coord overlap = *inter.begin();
+
+                Coord remaining1 = *coord_difference(
+                    two1, CoordSet{overlap}).begin();
+
+                Coord remaining2 = *coord_difference(
+                    two2, CoordSet{overlap}).begin();
+
+                win_next_next_next_turn_threats.insert({
+                    overlap,
+                    {
+                        WinNextNextTurnThreat{
+                            square1,
+                            CoordList{one1, remaining1}
+                        },
+                        WinNextNextTurnThreat{
+                            square2,
+                            CoordList{one2, remaining2}
+                        }
+                    }
+                });
             }
         }
     }
@@ -538,335 +753,398 @@ void MinimaxAgent::update_threats(
     std::set<Threat1>& k_1_threats,
     std::set<Threat2>& k_2_threats,
     std::set<Coord>& win_next_turn_threats,
-    std::set<std::tuple<Coord, std::tuple<Coord, Coord>>>& win_next_next_turn_threats,
-    std::set<std::tuple<Coord, std::tuple<Coord, Coord, Coord>>>& win_next_next_next_turn_threats,
-    std::set<std::tuple<Coord, std::tuple<Coord, Coord, Coord, Coord>>>& win_next_next_next_next_turn_threats
-) const {
-    // detect_threats() uses negative coordinates, e.g. (-1, -1),
-    // as placeholders for missing squares.
-    const auto valid_coord = [](const Coord& c) {
-        return c.first >= 0 && c.second >= 0;
-    };
+    std::set<WinNextNextTurnThreat>& win_next_next_turn_threats,
+    std::set<WinNextNextNextTurnThreat>& win_next_next_next_turn_threats,
+    std::set<WinNextNextNextNextTurnThreat>& win_next_next_next_next_turn_threats
+) const
+{
+    // Record any new threats resulting from playing a new move.
 
-    // A placeholder must never be treated as a real move.
-    if (!valid_coord(new_square)) {
-        return;
-    }
+    std::vector<Threat1> to_remove;
 
-    // ---------------------------------------------------------
-    // 1. Reduce one-square-pair threats to immediate win threats.
-    // ---------------------------------------------------------
-    for (auto it = k_1_threats.begin(); it != k_1_threats.end();) {
-        const Coord a = std::get<0>(*it);
-        const Coord b = std::get<1>(*it);
+    for (const auto& t : k_1_threats) {
+        const Coord& a = std::get<0>(t);
+        const Coord& b = std::get<1>(t);
 
-        if (a == new_square || b == new_square) {
-            if (a != new_square && valid_coord(a)) {
-                win_next_turn_threats.insert(a);
-            }
-            if (b != new_square && valid_coord(b)) {
-                win_next_turn_threats.insert(b);
-            }
-
-            it = k_1_threats.erase(it);
-        } else {
-            // Remove malformed threats even if they weren't activated.
-            if (!valid_coord(a) || !valid_coord(b)) {
-                it = k_1_threats.erase(it);
-            } else {
-                ++it;
-            }
-        }
-    }
-
-    // ---------------------------------------------------------
-    // 2. Reduce next-next-turn threats.
-    // ---------------------------------------------------------
-    for (auto it = win_next_next_turn_threats.begin();
-         it != win_next_next_turn_threats.end();) {
-        const Coord root = std::get<0>(*it);
-        const auto& children = std::get<1>(*it);
-
-        const Coord a = std::get<0>(children);
-        const Coord b = std::get<1>(children);
-
-        if (!valid_coord(root) || !valid_coord(a) || !valid_coord(b)) {
-            it = win_next_next_turn_threats.erase(it);
-            continue;
-        }
-
-        if (new_square == root) {
+        if (new_square == a || new_square == b) {
             if (a != new_square) {
                 win_next_turn_threats.insert(a);
             }
+
             if (b != new_square) {
                 win_next_turn_threats.insert(b);
             }
 
-            it = win_next_next_turn_threats.erase(it);
-            continue;
+            to_remove.push_back(t);
         }
-
-        if (new_square == a || new_square == b) {
-            win_next_turn_threats.insert(root);
-            it = win_next_next_turn_threats.erase(it);
-            continue;
-        }
-
-        ++it;
     }
 
-    // ---------------------------------------------------------
-    // 3. Reduce three-square threats.
-    // ---------------------------------------------------------
-    for (auto it = k_2_threats.begin(); it != k_2_threats.end();) {
-        const Coord a = std::get<0>(*it);
-        const Coord b = std::get<1>(*it);
-        const Coord c = std::get<2>(*it);
+    for (const auto& t : to_remove) {
+        k_1_threats.erase(t);
+    }
 
-        if (!valid_coord(a) || !valid_coord(b) || !valid_coord(c)) {
-            it = k_2_threats.erase(it);
+    // Update next-next-turn threats.
+    std::vector<WinNextNextTurnThreat> to_remove_wnn;
+
+    for (const auto& w : win_next_next_turn_threats) {
+        const Coord& root = w.root;
+
+        CoordList children;
+
+        if (std::holds_alternative<CoordList>(w.children)) {
+            children = std::get<CoordList>(w.children);
+        } else {
+            const auto& child_sets =
+                std::get<std::pair<CoordList, CoordList>>(w.children);
+
+            children.insert(
+                children.end(),
+                child_sets.first.begin(),
+                child_sets.first.end()
+            );
+
+            children.insert(
+                children.end(),
+                child_sets.second.begin(),
+                child_sets.second.end()
+            );
+        }
+
+        if (new_square == root) {
+            win_next_turn_threats.insert(
+                children.begin(), children.end()
+            );
+
+            to_remove_wnn.push_back(w);
             continue;
         }
 
-        if (a == new_square || b == new_square || c == new_square) {
-            Coord first;
-            Coord second;
+        for (const auto& sq : children) {
+            if (new_square == sq) {
+                win_next_turn_threats.insert(root);
+                to_remove_wnn.push_back(w);
+                break;
+            }
+        }
+    }
+
+    for (const auto& w : to_remove_wnn) {
+        win_next_next_turn_threats.erase(w);
+    }
+
+    // Update k-2 threats.
+    std::vector<Threat2> to_remove_k2;
+
+    for (const auto& t : k_2_threats) {
+        const Coord& a = std::get<0>(t);
+        const Coord& b = std::get<1>(t);
+        const Coord& c = std::get<2>(t);
+
+        if (new_square == a
+            || new_square == b
+            || new_square == c) {
 
             if (a == new_square) {
-                first = b;
-                second = c;
+                k_1_threats.insert(Threat1{b, c});
             } else if (b == new_square) {
-                first = a;
-                second = c;
+                k_1_threats.insert(Threat1{a, c});
             } else {
-                first = a;
-                second = b;
+                k_1_threats.insert(Threat1{a, b});
             }
 
-            if (valid_coord(first) && valid_coord(second)
-                && first != second) {
-                k_1_threats.insert(std::make_tuple(first, second));
-            }
-
-            it = k_2_threats.erase(it);
-            continue;
+            to_remove_k2.push_back(t);
         }
-
-        ++it;
     }
 
-    // ---------------------------------------------------------
-    // 4. Reduce next-next-next-turn threats.
-    // ---------------------------------------------------------
-    for (auto it = win_next_next_next_turn_threats.begin();
-         it != win_next_next_next_turn_threats.end();) {
-        const Coord root = std::get<0>(*it);
-        const auto& refs = std::get<1>(*it);
+    for (const auto& t : to_remove_k2) {
+        k_2_threats.erase(t);
+    }
 
-        const Coord a = std::get<0>(refs);
-        const Coord b = std::get<1>(refs);
-        const Coord c = std::get<2>(refs);
+    // Update next-next-next-turn threats.
+    std::vector<WinNextNextNextTurnThreat> to_remove_wnnn;
 
-        if (!valid_coord(root) ||
-            !valid_coord(a) ||
-            !valid_coord(b) ||
-            !valid_coord(c)) {
-            it = win_next_next_next_turn_threats.erase(it);
-            continue;
-        }
+    for (const auto& w : win_next_next_next_turn_threats) {
+        const Coord& root = w.root;
+        const auto& refs = w.refs;
 
         if (new_square == root) {
-            // The root move has been played. The remaining three
-            // valid coordinates form a next-next-turn threat.
             win_next_next_turn_threats.insert(
-                std::make_tuple(a, std::make_tuple(b, c)));
+                refs.begin(), refs.end()
+            );
 
-            win_next_next_next_turn_threats.erase(it++);
+            to_remove_wnnn.push_back(w);
             continue;
         }
 
-        if (new_square == a || new_square == b || new_square == c) {
-            win_next_turn_threats.insert(root);
-            it = win_next_next_next_turn_threats.erase(it);
-            continue;
+        for (const auto& ref : refs) {
+            if (new_square == ref.root) {
+                win_next_next_turn_threats.insert(ref);
+                to_remove_wnnn.push_back(w);
+                break;
+            }
         }
-
-        ++it;
     }
 
-    // ---------------------------------------------------------
-    // 5. Reduce next-next-next-next-turn threats.
-    // ---------------------------------------------------------
-    for (auto it = win_next_next_next_next_turn_threats.begin();
-         it != win_next_next_next_next_turn_threats.end();) {
-        const Coord root = std::get<0>(*it);
-        const auto& refs = std::get<1>(*it);
+    for (const auto& w : to_remove_wnnn) {
+        win_next_next_next_turn_threats.erase(w);
+    }
 
-        const Coord a = std::get<0>(refs);
-        const Coord b = std::get<1>(refs);
-        const Coord c = std::get<2>(refs);
-        const Coord d = std::get<3>(refs);
+    // Update next-next-next-next-turn threats.
+    std::vector<WinNextNextNextNextTurnThreat> to_remove_wnnnn;
 
-        if (!valid_coord(root)) {
-            it = win_next_next_next_next_turn_threats.erase(it);
-            continue;
+    for (const auto& w : win_next_next_next_next_turn_threats) {
+        if (new_square == w.root) {
+            // Reconstruct the nested third-order threat:
+            // (first_ref, refs).
+            WinNextNextNextTurnThreat activated{
+                w.first_ref,
+                w.refs
+            };
+
+            win_next_next_next_turn_threats.insert(activated);
+            to_remove_wnnnn.push_back(w);
         }
+    }
 
-        // Only real, distinct coordinates may be used to form
-        // lower-order threats. Keep their original order.
-        std::vector<Coord> valid_refs;
-        for (const Coord& sq : {a, b, c, d}) {
-            if (valid_coord(sq) &&
-                std::find(valid_refs.begin(), valid_refs.end(), sq)
-                    == valid_refs.end()) {
-                valid_refs.push_back(sq);
-            }
-        }
-
-        if (new_square == root) {
-            // A valid next-next-turn threat requires three distinct
-            // coordinates: one root and two child coordinates.
-            if (valid_refs.size() >= 3) {
-                for (std::size_t i = 0; i < valid_refs.size(); ++i) {
-                    const Coord child_root = valid_refs[i];
-
-                    std::vector<Coord> others;
-                    for (std::size_t j = 0; j < valid_refs.size(); ++j) {
-                        if (j != i) {
-                            others.push_back(valid_refs[j]);
-                        }
-                    }
-
-                    for (std::size_t j = 0; j < others.size(); ++j) {
-                        for (std::size_t k = j + 1; k < others.size(); ++k) {
-                            win_next_next_turn_threats.insert(
-                                std::make_tuple(
-                                    child_root,
-                                    std::make_tuple(others[j], others[k])));
-                        }
-                    }
-                }
-            }
-
-            it = win_next_next_next_next_turn_threats.erase(it);
-            continue;
-        }
-
-        // If the move occupies one of the reference squares, this
-        // threat can yield an immediate win at its root.
-        if (std::find(valid_refs.begin(), valid_refs.end(), new_square)
-            != valid_refs.end()) {
-            win_next_turn_threats.insert(root);
-            it = win_next_next_next_next_turn_threats.erase(it);
-            continue;
-        }
-
-        // Discard malformed threats rather than retaining placeholders.
-        if (valid_refs.size() != 4) {
-            it = win_next_next_next_next_turn_threats.erase(it);
-            continue;
-        }
-
-        ++it;
+    for (const auto& w : to_remove_wnnnn) {
+        win_next_next_next_next_turn_threats.erase(w);
     }
 }
 
 
 // block_threats --
-void MinimaxAgent::block_threats(const Coord& blocking_square,
+void MinimaxAgent::block_threats(
+    const Coord& blocking_square,
     std::set<Threat1>& k_1_threats,
     std::set<Threat2>& k_2_threats,
     std::set<Threat3>& k_3_threats,
-    std::set<std::tuple<Coord, std::tuple<Coord, Coord>>>& win_next_next_turn_threats,
-    std::set<std::tuple<Coord, std::tuple<Coord, Coord, Coord>>>& win_next_next_next_turn_threats,
-    std::set<std::tuple<Coord, std::tuple<Coord, Coord, Coord, Coord>>>& win_next_next_next_next_turn_threats) const {
-    //
-    // If blocking a win also blocks any other threats, remove them from storage.
-    //
-    for (auto it = k_1_threats.begin(); it != k_1_threats.end();) {
-        const auto& t = *it;
-        if (std::get<0>(t) == blocking_square || std::get<1>(t) == blocking_square) {
-            it = k_1_threats.erase(it);
-        } else {
-            ++it;
+    std::set<WinNextNextTurnThreat>& win_next_next_turn_threats,
+    std::set<WinNextNextNextTurnThreat>& win_next_next_next_turn_threats,
+    std::set<WinNextNextNextNextTurnThreat>& win_next_next_next_next_turn_threats
+) const
+{
+    // Extract the children represented by either variant alternative.
+    auto get_children = [](
+        const WinNextNextTurnThreat& w
+    ) -> std::vector<Coord> {
+        if (std::holds_alternative<CoordList>(w.children)) {
+            return std::get<CoordList>(w.children);
+        }
+
+        const auto& child_sets =
+            std::get<std::pair<CoordList, CoordList>>(w.children);
+
+        std::vector<Coord> children = child_sets.first;
+        children.insert(
+            children.end(),
+            child_sets.second.begin(),
+            child_sets.second.end()
+        );
+
+        return children;
+    };
+
+    /*
+     * If blocking a win also blocks any other threats,
+     * remove them from storage.
+     */
+
+    // Remove k-1 threats containing the blocking square.
+    {
+        std::vector<Threat1> to_remove;
+
+        for (const auto& t : k_1_threats) {
+            if (blocking_square == std::get<0>(t)
+                || blocking_square == std::get<1>(t)) {
+                to_remove.push_back(t);
+            }
+        }
+
+        for (const auto& t : to_remove) {
+            k_1_threats.erase(t);
         }
     }
 
-    for (auto it = win_next_next_turn_threats.begin(); it != win_next_next_turn_threats.end();) {
-        const auto& w = *it;
-        const Coord root = std::get<0>(w);
-        const auto& children = std::get<1>(w);
-        std::set<Coord> child_set{std::get<0>(children), std::get<1>(children)};
-        if (blocking_square == root || child_set.count(blocking_square) > 0) {
-            it = win_next_next_turn_threats.erase(it);
-        } else {
-            ++it;
+    // Remove next-next-turn threats blocked by this square.
+    {
+        std::vector<WinNextNextTurnThreat> to_remove;
+
+        for (const auto& w : win_next_next_turn_threats) {
+            const Coord& root = w.root;
+            const std::vector<Coord> children = get_children(w);
+
+            if (blocking_square == root
+                || std::find(
+                    children.begin(), children.end(), blocking_square
+                ) != children.end()) {
+                to_remove.push_back(w);
+            }
+        }
+
+        for (const auto& w : to_remove) {
+            win_next_next_turn_threats.erase(w);
         }
     }
 
-    for (auto it = k_2_threats.begin(); it != k_2_threats.end();) {
-        const auto& t = *it;
-        if (std::get<0>(t) == blocking_square || std::get<1>(t) == blocking_square || std::get<2>(t) == blocking_square) {
-            it = k_2_threats.erase(it);
-        } else {
-            ++it;
+    // Remove k-2 threats containing the blocking square.
+    {
+        std::vector<Threat2> to_remove;
+
+        for (const auto& t : k_2_threats) {
+            if (blocking_square == std::get<0>(t)
+                || blocking_square == std::get<1>(t)
+                || blocking_square == std::get<2>(t)) {
+                to_remove.push_back(t);
+                continue;
+            }
+        }
+
+        for (const auto& t : to_remove) {
+            k_2_threats.erase(t);
         }
     }
 
-    for (auto it = win_next_next_next_turn_threats.begin(); it != win_next_next_next_turn_threats.end();) {
-        const auto& w = *it;
-        const Coord root = std::get<0>(w);
-        const auto& refs = std::get<1>(w);
-        const Coord ref0 = std::get<0>(refs);
-        const Coord ref1 = std::get<1>(refs);
-        const Coord ref2 = std::get<2>(refs);
-        const std::set<Coord> child_set{ref0, ref1, ref2};
-        if (blocking_square == root || child_set.count(blocking_square) > 0) {
-            it = win_next_next_next_turn_threats.erase(it);
-        } else {
-            ++it;
+    // Remove next-next-next-turn threats that are blocked.
+    {
+        std::vector<WinNextNextNextTurnThreat> to_remove;
+
+        for (const auto& w : win_next_next_next_turn_threats) {
+            const Coord& root = w.root;
+
+            if (blocking_square == root) {
+                to_remove.push_back(w);
+                continue;
+            }
+
+            for (const auto& ref : w.refs) {
+                const Coord& ref_root = ref.root;
+                const std::vector<Coord> children = get_children(ref);
+
+                if (blocking_square == ref_root
+                    || std::find(
+                        children.begin(), children.end(), blocking_square
+                    ) != children.end()) {
+                    to_remove.push_back(w);
+                    break;
+                }
+            }
+        }
+
+        for (const auto& w : to_remove) {
+            win_next_next_next_turn_threats.erase(w);
         }
     }
 
-    for (auto it = k_3_threats.begin(); it != k_3_threats.end();) {
-        const auto& t = *it;
-        if (std::get<0>(t) == blocking_square || std::get<1>(t) == blocking_square ||
-            std::get<2>(t) == blocking_square || std::get<3>(t) == blocking_square) {
-            it = k_3_threats.erase(it);
-        } else {
-            ++it;
+    // Remove k-3 threats containing the blocking square.
+    {
+        std::vector<Threat3> to_remove;
+
+        for (const auto& t : k_3_threats) {
+            if (blocking_square == std::get<0>(t)
+                || blocking_square == std::get<1>(t)
+                || blocking_square == std::get<2>(t)
+                || blocking_square == std::get<3>(t)) {
+                to_remove.push_back(t);
+                continue;
+            }
+        }
+
+        for (const auto& t : to_remove) {
+            k_3_threats.erase(t);
         }
     }
 
-    for (auto it = win_next_next_next_next_turn_threats.begin(); it != win_next_next_next_next_turn_threats.end();) {
-        const auto& w = *it;
-        const Coord root = std::get<0>(w);
-        const auto& refs = std::get<1>(w);
-        const Coord ref0 = std::get<0>(refs);
-        const Coord ref1 = std::get<1>(refs);
-        const Coord ref2 = std::get<2>(refs);
-        const Coord ref3 = std::get<3>(refs);
-        if (blocking_square == root || blocking_square == ref0 || blocking_square == ref1 ||
-            blocking_square == ref2 || blocking_square == ref3) {
-            it = win_next_next_next_next_turn_threats.erase(it);
-        } else {
-            ++it;
+    // Remove next-next-next-next-turn threats that are blocked.
+    {
+        std::vector<WinNextNextNextNextTurnThreat> to_remove;
+
+        for (const auto& w : win_next_next_next_next_turn_threats) {
+            const Coord& root = w.root;
+
+            if (blocking_square == root
+                || blocking_square == w.first_ref) {
+                to_remove.push_back(w);
+                continue;
+            }
+
+            for (const auto& ref : w.refs) {
+                const Coord& ref_root = ref.root;
+                const std::vector<Coord> children = get_children(ref);
+
+                if (blocking_square == ref_root
+                    || std::find(
+                        children.begin(), children.end(), blocking_square
+                    ) != children.end()) {
+                    to_remove.push_back(w);
+                    break;
+                }
+            }
+        }
+
+        for (const auto& w : to_remove) {
+            win_next_next_next_next_turn_threats.erase(w);
         }
     }
 }
 
 // get_squares_from_wn3_threat --
-std::set<MinimaxAgent::Coord> MinimaxAgent::get_squares_from_wn3_threat(const std::tuple<Coord, std::vector<std::pair<Coord, std::vector<Coord>>>>& threat) const {
-    std::set<Coord> squares;
-    flatten_threat_squares(threat, squares);
+CoordSet MinimaxAgent::get_squares_from_wn3_threat(
+    const WinNextNextNextTurnThreat& threat
+) const {
+    const auto& refs = threat.refs;
+    const auto& first = refs[0];
+
+    CoordSet squares;
+    squares.insert(first.root);
+
+    auto add_children = [&squares](
+        const WinNextNextTurnThreat& ref
+    ) {
+        if (std::holds_alternative<CoordList>(ref.children)) {
+            const auto& children = std::get<CoordList>(ref.children);
+            squares.insert(children.begin(), children.end());
+        } else {
+            const auto& child_sets =
+                std::get<std::pair<CoordList, CoordList>>(ref.children);
+
+            squares.insert(
+                child_sets.first.begin(), child_sets.first.end()
+            );
+            squares.insert(
+                child_sets.second.begin(), child_sets.second.end()
+            );
+        }
+    };
+
+    add_children(first);
+
+    if (refs.size() == 2) {
+        const auto& second = refs[1];
+        squares.insert(second.root);
+        add_children(second);
+    }
+
     return squares;
 }
 
 // get_squares_from_wn4_threat --
-std::set<MinimaxAgent::Coord> MinimaxAgent::get_squares_from_wn4_threat(const std::pair<Coord, std::vector<std::pair<Coord, std::vector<Coord>>>>& threat) const {
-    std::set<Coord> squares;
-    flatten_threat_squares(threat, squares);
+CoordSet MinimaxAgent::get_squares_from_wn4_threat(
+    const WinNextNextNextNextTurnThreat& threat
+) const {
+    CoordSet squares;
+    squares.insert(threat.root);
+    squares.insert(threat.first_ref);
+
+    // The Python helper passes refs directly to the wn3 helper.
+    // Adapt the stored wn4 references to the wn3 structure.
+    WinNextNextNextTurnThreat nested{
+        threat.first_ref,
+        threat.refs
+    };
+
+    CoordSet nested_squares = get_squares_from_wn3_threat(nested);
+    squares.insert(nested_squares.begin(), nested_squares.end());
+
     return squares;
 }
 
@@ -1047,13 +1325,16 @@ MinimaxAgent::SearchResult MinimaxAgent::minimax(const GameState& state, int dep
 
     depth_counter[depth_offset - depth_remaining + ff] += 1;
 
+    // Exit early if reached time limit
     constexpr auto wrapup = std::chrono::milliseconds(100);
     if ((timed_out && *timed_out) || (timeout && Clock::now() >= *timeout - wrapup)) {
         if (timed_out) *timed_out = true;
         return SearchResult{GameState::Move{-1, -1}, 0.0, 0, 0, ff, false};
     }
+
+    // Return static evaluation if reached depth limit or game over
     const auto outcome = state.winner();
-    if (outcome != GameState::Outcome::InProgress || depth_remaining <= 0 || state.is_full()) {
+    if (depth_remaining <= 0 || state.is_full() || outcome != GameState::Outcome::InProgress) {
         const EvalResult eval = static_eval_result(state);
         SearchResult result{GameState::Move{-1, -1}, eval.value, eval.deadline, eval.result, ff};
         if (z_hashing != nullptr) {
@@ -1064,6 +1345,7 @@ MinimaxAgent::SearchResult MinimaxAgent::minimax(const GameState& state, int dep
         return result;
     }
 
+    // Otherwise do minimax
     const int h = state.rows();
     const int w = state.cols();
     const int k = state.k_in_row();
@@ -1071,6 +1353,7 @@ MinimaxAgent::SearchResult MinimaxAgent::minimax(const GameState& state, int dep
     const char b_piece = (a_piece == GameState::X_PIECE) ? GameState::O_PIECE : GameState::X_PIECE;
     const double sign = (a_piece == GameState::X_PIECE) ? 1.0 : -1.0;
 
+    // Initialise best move state
     GameState::Move best_move{-1, -1};
     double best_value = (a_piece == GameState::X_PIECE) ? -kInf : kInf;
     int best_deadline = 0;
@@ -1080,6 +1363,7 @@ MinimaxAgent::SearchResult MinimaxAgent::minimax(const GameState& state, int dep
 
     const std::vector<std::pair<int, int>> directions{{1, 0}, {0, 1}, {1, 1}, {-1, 1}};
 
+    // Scan for wins and threats
     std::set<Coord> a_win_next_turn_threats;
     std::set<Coord> b_win_next_turn_threats;
     std::set<Threat1> a_k_1_threats;
@@ -1088,12 +1372,12 @@ MinimaxAgent::SearchResult MinimaxAgent::minimax(const GameState& state, int dep
     std::set<Threat2> b_k_2_threats;
     std::set<Threat3> a_k_3_threats;
     std::set<Threat3> b_k_3_threats;
-    std::set<std::tuple<Coord, std::tuple<Coord, Coord>>> a_win_next_next_turn_threats;
-    std::set<std::tuple<Coord, std::tuple<Coord, Coord>>> b_win_next_next_turn_threats;
-    std::set<std::tuple<Coord, std::tuple<Coord, Coord, Coord>>> a_win_next_next_next_turn_threats;
-    std::set<std::tuple<Coord, std::tuple<Coord, Coord, Coord>>> b_win_next_next_next_turn_threats;
-    std::set<std::tuple<Coord, std::tuple<Coord, Coord, Coord, Coord>>> a_win_next_next_next_next_turn_threats;
-    std::set<std::tuple<Coord, std::tuple<Coord, Coord, Coord, Coord>>> b_win_next_next_next_next_turn_threats;
+    std::set<WinNextNextTurnThreat> a_win_next_next_turn_threats;
+    std::set<WinNextNextTurnThreat> b_win_next_next_turn_threats;
+    std::set<WinNextNextNextTurnThreat> a_win_next_next_next_turn_threats;
+    std::set<WinNextNextNextTurnThreat> b_win_next_next_next_turn_threats;
+    std::set<WinNextNextNextNextTurnThreat> a_win_next_next_next_next_turn_threats;
+    std::set<WinNextNextNextNextTurnThreat> b_win_next_next_next_next_turn_threats;
 
     double a_value = 0.0;
     double b_value = 0.0;
@@ -1101,40 +1385,41 @@ MinimaxAgent::SearchResult MinimaxAgent::minimax(const GameState& state, int dep
     int b_wins = 0;
 
     process_wins_and_threats(state, h, w, k, directions, a_piece, b_piece,
-        a_win_next_turn_threats, b_win_next_turn_threats,
-        a_k_1_threats, b_k_1_threats,
-        a_k_2_threats, b_k_2_threats,
-        a_k_3_threats, b_k_3_threats,
-        a_value, b_value, a_wins, b_wins);
+                            a_win_next_turn_threats, b_win_next_turn_threats,
+                            a_k_1_threats, b_k_1_threats,
+                            a_k_2_threats, b_k_2_threats,
+                            a_k_3_threats, b_k_3_threats,
+                            a_value, b_value, a_wins, b_wins);
 
     detect_threats(a_k_1_threats, a_k_2_threats, a_k_3_threats,
-        a_win_next_next_turn_threats,
-        a_win_next_next_next_turn_threats,
-        a_win_next_next_next_next_turn_threats);
-    detect_threats(b_k_1_threats, b_k_2_threats, b_k_3_threats,
-        b_win_next_next_turn_threats,
-        b_win_next_next_next_turn_threats,
-        b_win_next_next_next_next_turn_threats);
+                a_win_next_next_turn_threats,
+                a_win_next_next_next_turn_threats,
+                a_win_next_next_next_next_turn_threats);
 
-    // Threat tuples may contain {-1, -1} placeholders. Never turn those
-    // placeholders (or occupied/out-of-bounds coordinates) into search moves.
+    detect_threats(b_k_1_threats, b_k_2_threats, b_k_3_threats,
+                b_win_next_next_turn_threats,
+                b_win_next_next_next_turn_threats,
+                b_win_next_next_next_next_turn_threats);
+
     const auto to_moves = [&state](const std::set<Coord>& coords) {
         std::vector<GameState::Move> out;
         out.reserve(coords.size());
         for (const auto& c : coords) {
-            if (state.is_valid_move(c.first, c.second)) {
-                out.emplace_back(c.first, c.second);
-            }
+            out.emplace_back(c.first, c.second);
         }
         return out;
     };
 
+    // Search immediate wins and threats first, then other remaining moves
     std::set<Coord> searched_moves;
     while (true) {
         if (!a_win_next_turn_threats.empty()) {
             searched_moves.insert(a_win_next_turn_threats.begin(), a_win_next_turn_threats.end());
-            search_moves(state, depth_remaining, alpha, beta, z_index, ff, ff_branch_max, h, a_piece,
-                to_moves(a_win_next_turn_threats), best_move, best_value, best_deadline, best_result, best_fff,
+            search_moves(
+                state, depth_remaining, alpha, beta,
+                z_index, ff, ff_branch_max, h,
+                a_piece, to_moves(a_win_next_turn_threats),
+                best_move, best_value, best_deadline, best_result, best_fff,
                 false, z_hashing, timeout, timed_out);
             break;
         }
@@ -1153,22 +1438,20 @@ MinimaxAgent::SearchResult MinimaxAgent::minimax(const GameState& state, int dep
         if (!a_win_next_next_turn_threats.empty()) {
             std::set<Coord> moves;
             for (const auto& t : a_win_next_next_turn_threats) {
-                moves.insert(std::get<0>(t));
+                moves.insert(t.root);
             }
             searched_moves.insert(moves.begin(), moves.end());
-            search_moves(state, depth_remaining, alpha, beta, z_index, ff, ff_branch_max, h, a_piece,
+            bool stop_search = search_moves(state, depth_remaining, alpha, beta, z_index, ff, ff_branch_max, h, a_piece,
                 to_moves(moves), best_move, best_value, best_deadline, best_result, best_fff,
                 static_cast<bool>(static_cast<int>(searched_moves.size()) < ff_branch_max), z_hashing, timeout, timed_out);
-            break;
+            if (stop_search) break;
         }
 
         if (!b_win_next_next_turn_threats.empty()) {
             std::set<Coord> moves;
             for (const auto& t : b_win_next_next_turn_threats) {
-                moves.insert(std::get<0>(t));
-                const auto& children = std::get<1>(t);
-                moves.insert(std::get<0>(children));
-                moves.insert(std::get<1>(children));
+                moves.insert(t.root);
+                add_children_to_set(t.children, moves);
             }
             for (const auto& t : a_k_1_threats) {
                 moves.insert(std::get<0>(t));
@@ -1184,24 +1467,25 @@ MinimaxAgent::SearchResult MinimaxAgent::minimax(const GameState& state, int dep
         if (!a_win_next_next_next_turn_threats.empty()) {
             std::set<Coord> moves;
             for (const auto& t : a_win_next_next_next_turn_threats) {
-                moves.insert(std::get<0>(t));
+                moves.insert(t.root);
             }
             searched_moves.insert(moves.begin(), moves.end());
-            search_moves(state, depth_remaining, alpha, beta, z_index, ff, ff_branch_max, h, a_piece,
+            bool stop_search = search_moves(state, depth_remaining, alpha, beta, z_index, ff, ff_branch_max, h, a_piece,
                 to_moves(moves), best_move, best_value, best_deadline, best_result, best_fff,
                 static_cast<bool>(static_cast<int>(searched_moves.size()) < ff_branch_max), z_hashing, timeout, timed_out);
-            break;
+            if (stop_search) break;
         }
 
         if (!b_win_next_next_next_turn_threats.empty()) {
             std::set<Coord> moves;
             for (const auto& t : b_win_next_next_next_turn_threats) {
-                const Coord overlap = std::get<0>(t);
-                const auto& refs = std::get<1>(t);
+                const Coord overlap = t.root;
+                const auto& refs = t.refs;
                 moves.insert(overlap);
-                moves.insert(std::get<0>(refs));
-                moves.insert(std::get<1>(refs));
-                moves.insert(std::get<2>(refs));
+                for (const auto& ref : refs) {
+                    moves.insert(ref.root);
+                    add_children_to_set(ref.children, moves);
+                }
             }
             for (const auto& t : a_k_1_threats) {
                 moves.insert(std::get<0>(t));
@@ -1222,25 +1506,34 @@ MinimaxAgent::SearchResult MinimaxAgent::minimax(const GameState& state, int dep
         if (!a_win_next_next_next_next_turn_threats.empty()) {
             std::set<Coord> moves;
             for (const auto& t : a_win_next_next_next_next_turn_threats) {
-                moves.insert(std::get<0>(t));
+                moves.insert(t.root);
             }
             searched_moves.insert(moves.begin(), moves.end());
-            search_moves(state, depth_remaining, alpha, beta, z_index, ff, ff_branch_max, h, a_piece,
+            bool stop_search = search_moves(state, depth_remaining, alpha, beta, z_index, ff, ff_branch_max, h, a_piece,
                 to_moves(moves), best_move, best_value, best_deadline, best_result, best_fff,
                 static_cast<bool>(static_cast<int>(searched_moves.size()) < ff_branch_max), z_hashing, timeout, timed_out);
-            break;
+            if (stop_search) break;
         }
 
         if (!b_win_next_next_next_next_turn_threats.empty()) {
             std::set<Coord> moves;
+
             for (const auto& t : b_win_next_next_next_next_turn_threats) {
-                const Coord first = std::get<0>(t);
-                const auto& second = std::get<1>(t);
-                moves.insert(first);
-                moves.insert(std::get<0>(second));
-                moves.insert(std::get<1>(second));
-                moves.insert(std::get<2>(second));
-                moves.insert(std::get<3>(second));
+                // Python: first, b_win_nnnt_t = b_win_nnnnt_t
+                //         moves.add(first)
+                moves.insert(t.root);
+
+                // Python: second, b_win_nnt_t_ref = b_win_nnnt_t
+                //         moves.add(second)
+                moves.insert(t.first_ref);
+
+                // Python: for ref in b_win_nnt_t_ref
+                //             moves.add(ref[0])
+                //             moves.update(ref[1])
+                for (const auto& ref : t.refs) {
+                    moves.insert(ref.root);
+                    add_children_to_set(ref.children, moves);
+                }
             }
             for (const auto& t : a_k_1_threats) {
                 moves.insert(std::get<0>(t));
@@ -1267,10 +1560,10 @@ MinimaxAgent::SearchResult MinimaxAgent::minimax(const GameState& state, int dep
             std::set<Coord> filtered;
             std::set_difference(moves.begin(), moves.end(), searched_moves.begin(), searched_moves.end(), std::inserter(filtered, filtered.begin()));
             searched_moves.insert(filtered.begin(), filtered.end());
-            search_moves(state, depth_remaining, alpha, beta, z_index, ff, ff_branch_max, h, a_piece,
+            bool stop_search = search_moves(state, depth_remaining, alpha, beta, z_index, ff, ff_branch_max, h, a_piece,
                 to_moves(filtered), best_move, best_value, best_deadline, best_result, best_fff,
                 static_cast<bool>(static_cast<int>(searched_moves.size()) < ff_branch_max), z_hashing, timeout, timed_out);
-            break;
+            if (stop_search) break;
         }
 
         if (!a_k_2_threats.empty()) {
@@ -1283,10 +1576,10 @@ MinimaxAgent::SearchResult MinimaxAgent::minimax(const GameState& state, int dep
             std::set<Coord> filtered;
             std::set_difference(moves.begin(), moves.end(), searched_moves.begin(), searched_moves.end(), std::inserter(filtered, filtered.begin()));
             searched_moves.insert(filtered.begin(), filtered.end());
-            search_moves(state, depth_remaining, alpha, beta, z_index, ff, ff_branch_max, h, a_piece,
+            bool stop_search = search_moves(state, depth_remaining, alpha, beta, z_index, ff, ff_branch_max, h, a_piece,
                 to_moves(filtered), best_move, best_value, best_deadline, best_result, best_fff,
                 false, z_hashing, timeout, timed_out);
-            break;
+            if (stop_search) break;
         }
 
         if (!a_k_3_threats.empty()) {
@@ -1300,10 +1593,10 @@ MinimaxAgent::SearchResult MinimaxAgent::minimax(const GameState& state, int dep
             std::set<Coord> filtered;
             std::set_difference(moves.begin(), moves.end(), searched_moves.begin(), searched_moves.end(), std::inserter(filtered, filtered.begin()));
             searched_moves.insert(filtered.begin(), filtered.end());
-            search_moves(state, depth_remaining, alpha, beta, z_index, ff, ff_branch_max, h, a_piece,
+            bool stop_search = search_moves(state, depth_remaining, alpha, beta, z_index, ff, ff_branch_max, h, a_piece,
                 to_moves(filtered), best_move, best_value, best_deadline, best_result, best_fff,
                 false, z_hashing, timeout, timed_out);
-            break;
+            if (stop_search) break;
         }
 
         if (!b_k_1_threats.empty()) {
@@ -1315,10 +1608,10 @@ MinimaxAgent::SearchResult MinimaxAgent::minimax(const GameState& state, int dep
             std::set<Coord> filtered;
             std::set_difference(moves.begin(), moves.end(), searched_moves.begin(), searched_moves.end(), std::inserter(filtered, filtered.begin()));
             searched_moves.insert(filtered.begin(), filtered.end());
-            search_moves(state, depth_remaining, alpha, beta, z_index, ff, ff_branch_max, h, a_piece,
+            bool stop_search = search_moves(state, depth_remaining, alpha, beta, z_index, ff, ff_branch_max, h, a_piece,
                 to_moves(filtered), best_move, best_value, best_deadline, best_result, best_fff,
                 false, z_hashing, timeout, timed_out);
-            break;
+            if (stop_search) break;
         }
 
         if (!b_k_2_threats.empty()) {
@@ -1331,10 +1624,10 @@ MinimaxAgent::SearchResult MinimaxAgent::minimax(const GameState& state, int dep
             std::set<Coord> filtered;
             std::set_difference(moves.begin(), moves.end(), searched_moves.begin(), searched_moves.end(), std::inserter(filtered, filtered.begin()));
             searched_moves.insert(filtered.begin(), filtered.end());
-            search_moves(state, depth_remaining, alpha, beta, z_index, ff, ff_branch_max, h, a_piece,
+            bool stop_search = search_moves(state, depth_remaining, alpha, beta, z_index, ff, ff_branch_max, h, a_piece,
                 to_moves(filtered), best_move, best_value, best_deadline, best_result, best_fff,
                 false, z_hashing, timeout, timed_out);
-            break;
+            if (stop_search) break;
         }
 
         if (!b_k_3_threats.empty()) {
@@ -1348,10 +1641,10 @@ MinimaxAgent::SearchResult MinimaxAgent::minimax(const GameState& state, int dep
             std::set<Coord> filtered;
             std::set_difference(moves.begin(), moves.end(), searched_moves.begin(), searched_moves.end(), std::inserter(filtered, filtered.begin()));
             searched_moves.insert(filtered.begin(), filtered.end());
-            search_moves(state, depth_remaining, alpha, beta, z_index, ff, ff_branch_max, h, a_piece,
+            bool stop_search = search_moves(state, depth_remaining, alpha, beta, z_index, ff, ff_branch_max, h, a_piece,
                 to_moves(filtered), best_move, best_value, best_deadline, best_result, best_fff,
                 false, z_hashing, timeout, timed_out);
-            break;
+            if (stop_search) break;
         }
 
         std::set<Coord> adjacent_1_moves;
@@ -1361,18 +1654,18 @@ MinimaxAgent::SearchResult MinimaxAgent::minimax(const GameState& state, int dep
 
         if (!adjacent_1_moves.empty()) {
             searched_moves.insert(adjacent_1_moves.begin(), adjacent_1_moves.end());
-            search_moves(state, depth_remaining, alpha, beta, z_index, ff, ff_branch_max, h, a_piece,
+            bool stop_search = search_moves(state, depth_remaining, alpha, beta, z_index, ff, ff_branch_max, h, a_piece,
                 to_moves(adjacent_1_moves), best_move, best_value, best_deadline, best_result, best_fff,
                 false, z_hashing, timeout, timed_out);
-            break;
+            if (stop_search) break;
         }
 
         if (!adjacent_2_moves.empty()) {
             searched_moves.insert(adjacent_2_moves.begin(), adjacent_2_moves.end());
-            search_moves(state, depth_remaining, alpha, beta, z_index, ff, ff_branch_max, h, a_piece,
+            bool stop_search = search_moves(state, depth_remaining, alpha, beta, z_index, ff, ff_branch_max, h, a_piece,
                 to_moves(adjacent_2_moves), best_move, best_value, best_deadline, best_result, best_fff,
                 false, z_hashing, timeout, timed_out);
-            break;
+            if (stop_search) break;
         }
 
         std::map<GameState::Move, double> move_priorities;
@@ -1432,7 +1725,8 @@ MinimaxAgent::SearchResult MinimaxAgent::minimax(const GameState& state, int dep
     }
 
     if (timed_out && *timed_out) {
-        return SearchResult{GameState::Move{-1, -1}, 0.0, 0, 0, ff, false};
+        std::cerr << "Search timed out\n";
+        exit(1);
     }
     if (z_hashing != nullptr) {
         auto& z_memory = std::get<1>(*z_hashing);
@@ -1561,64 +1855,45 @@ bool MinimaxAgent::eval_move(
     bool stop_search = false;
 
     if (a_piece == GameState::X_PIECE) {
-        const bool better_value = value > best_value;
-        const bool better_win_deadline =
-            best_result == 3 && result == 3 &&
-            deadline > best_deadline;
-        const bool better_loss_deadline =
-            best_result == 2 && result == 2 &&
-            deadline < best_deadline;
-
-        if (better_value || better_win_deadline || better_loss_deadline) {
+        if (value > best_value ||
+                (best_result == 3 && result == 3 && deadline > best_deadline) ||
+                (best_result == 2 && result == 2 && deadline < best_deadline)) {
             best_move = move;
             best_value = value;
             best_deadline = deadline;
             best_result = result;
             best_fff = fff;
-
-            if (result == 2) {
+            if (result == 2)
                 stop_search = true;
-            }
         }
-
-        if (beta != kInf && best_value > beta) {
+        if (beta != kInf && best_value > beta)
             stop_search = true;
-        }
-
         alpha = std::max(alpha, best_value);
-    } else {
-        const bool better_value = value < best_value;
-        const bool better_win_deadline =
-            best_result == 2 && result == 2 &&
-            deadline > best_deadline;
-        const bool better_loss_deadline =
-            best_result == 3 && result == 3 &&
-            deadline < best_deadline;
-
-        if (better_value || better_win_deadline || better_loss_deadline) {
+    } else if (a_piece == GameState::O_PIECE) {
+        if (value < best_value ||
+                (best_result == 2 && result == 2 && deadline > best_deadline) ||
+                (best_result == 3 && result == 3 && deadline < best_deadline)) {
             best_move = move;
             best_value = value;
             best_deadline = deadline;
             best_result = result;
             best_fff = fff;
-
-            if (result == 3) {
+            if (result == 3)
                 stop_search = true;
-            }
         }
-
-        if (alpha != -kInf && best_value < alpha) {
+        if (alpha != -kInf && best_value < alpha)
             stop_search = true;
-        }
-
         beta = std::min(beta, best_value);
+    } else {
+        std::cerr << "Invalid player piece: " << a_piece << "\n";
+        exit(1);
     }
 
     return stop_search;
 }
 
 // search_moves --
-void MinimaxAgent::search_moves(
+bool MinimaxAgent::search_moves(
     const GameState& state,
     int depth_remaining,
     double& alpha,
@@ -1643,7 +1918,11 @@ void MinimaxAgent::search_moves(
 
     constexpr auto wrapup = std::chrono::milliseconds(100);
 
+    bool stop_search = false;
+
     for (const auto& move : moves_to_search) {
+
+        // Iterate until all spaces have been tried, exit early if time limit is reached
         if ((timed_out && *timed_out) ||
             (timeout && Clock::now() >= *timeout - wrapup)) {
             if (timed_out) {
@@ -1655,116 +1934,73 @@ void MinimaxAgent::search_moves(
         // Invalid generated candidates should be skipped rather than allowed
         // to corrupt the search or cause an invalid board transition.
         if (!state.is_valid_move(move)) {
-            continue;
+            std::cerr << "Invalid move generated: ("
+                << move.first << ", " << move.second << ")\n";
+            exit(1);
         }
 
+
+        auto& z_table = std::get<0>(*z_hashing);
+        auto& z_memory = std::get<1>(*z_hashing);
+        auto& z_key = std::get<2>(*z_hashing);
+        const std::uint64_t old_z_key = z_key;
+
+        // Play A in square (i,j), update Zobrist hash
         const GameState new_state = state.make_move(move);
-        const int new_depth_remaining =
-            can_fast_forward ? depth_remaining : depth_remaining - 1;
+        const std::uint64_t new_z_key = step_zobrist_key(old_z_key, z_table,move.first, move.second, z_index, state.cols());
 
-        SearchResult child_result{
-            GameState::Move{-1, -1},
-            0.0,
-            0,
-            0,
-            ff,
-            true
-        };
-
-        if (z_hashing != nullptr) {
-            auto& z_table = std::get<0>(*z_hashing);
-            auto& z_memory = std::get<1>(*z_hashing);
-            auto& z_key = std::get<2>(*z_hashing);
-
-            const std::uint64_t old_z_key = z_key;
-            const std::uint64_t new_z_key = step_zobrist_key(
-                old_z_key,
-                z_table,
-                move.first,
-                move.second,
-                z_index,
-                state.cols()
-            );
-
-            const auto cached = z_memory.find(new_z_key);
-
-            if (cached != z_memory.end()) {
-                child_result = SearchResult{
-                    std::get<0>(cached->second),
-                    std::get<1>(cached->second),
-                    std::get<2>(cached->second),
-                    std::get<3>(cached->second),
-                    std::get<4>(cached->second),
-                    true
-                };
-            } else {
-                z_key = new_z_key;
-
-                try {
-                    child_result = minimax(
-                        new_state,
-                        new_depth_remaining,
-                        alpha,
-                        beta,
-                        z_hashing,
-                        ff + (can_fast_forward ? 1 : 0),
-                        can_fast_forward
-                            ? std::max(0, ff_branch_max - 1)
-                            : ff_branch_max,
-                        timeout,
-                        timed_out
-                    );
-                } catch (...) {
-                    z_key = old_z_key;
-                    throw;
-                }
-
-                z_key = old_z_key;
-            }
+        // Find the value of the new state
+        SearchResult child_result;
+        const auto cached = z_memory.find(new_z_key);
+        if (cached != z_memory.end()) {
+            child_result = SearchResult{
+                std::get<0>(cached->second),
+                std::get<1>(cached->second),
+                std::get<2>(cached->second),
+                std::get<3>(cached->second),
+                std::get<4>(cached->second),
+                true
+            };
         } else {
-            // Preserve fast-forward state even when hashing is disabled.
-            child_result = minimax(
-                new_state,
-                new_depth_remaining,
-                alpha,
-                beta,
-                nullptr,
-                ff + (can_fast_forward ? 1 : 0),
-                can_fast_forward
-                    ? std::max(0, ff_branch_max - 1)
-                    : ff_branch_max,
-                timeout,
-                timed_out
-            );
+            z_key = new_z_key;
+            const int new_depth_remaining = can_fast_forward ? depth_remaining : depth_remaining - 1;
+            const int new_ff = can_fast_forward ? ff + 1 : ff;
+            const int new_ff_branch_max = can_fast_forward ? std::max(0, ff_branch_max - 1) : ff_branch_max;
+
+            try {
+                child_result = minimax(new_state, new_depth_remaining,
+                    alpha, beta, z_hashing,
+                    new_ff, new_ff_branch_max,
+                    timeout, timed_out
+                );
+            } catch (...) {
+                std::cerr << "Error occurred during minimax search for move ("
+                    << move.first << ", " << move.second << ")\n";
+                exit(1);
+            }
+
+            z_key = old_z_key;
         }
 
+        // Exit early if reached time limit
         if (!child_result.completed) {
-            if (timed_out) {
+            if (timed_out)
                 *timed_out = true;
-            }
             break;
         }
 
-        const bool stop_search = eval_move(
-            alpha,
-            beta,
-            a_piece,
-            best_move,
-            best_value,
-            best_deadline,
-            best_result,
-            best_fff,
-            move,
-            child_result.value,
-            child_result.deadline,
-            child_result.result,
-            child_result.fff
+        // Update best move, alpha and beta
+        stop_search = eval_move(
+            alpha, beta, a_piece, best_move, best_value, best_deadline, best_result, best_fff,
+            move, child_result.value, child_result.deadline, child_result.result, child_result.fff
         );
-
         if (stop_search) {
             break;
         }
     }
+
+    best_result = (best_result == 1) ? 0 : best_result;
+    return stop_search;
 }
 
 
@@ -1808,12 +2044,12 @@ MinimaxAgent::EvalResult MinimaxAgent::static_eval_result(const GameState& state
     std::set<Threat3> a_k_3_threats;
     std::set<Threat3> b_k_3_threats;
 
-    std::set<std::tuple<Coord, std::tuple<Coord, Coord>>> a_win_next_next_turn_threats;
-    std::set<std::tuple<Coord, std::tuple<Coord, Coord>>> b_win_next_next_turn_threats;
-    std::set<std::tuple<Coord, std::tuple<Coord, Coord, Coord>>> a_win_next_next_next_turn_threats;
-    std::set<std::tuple<Coord, std::tuple<Coord, Coord, Coord>>> b_win_next_next_next_turn_threats;
-    std::set<std::tuple<Coord, std::tuple<Coord, Coord, Coord, Coord>>> a_win_next_next_next_next_turn_threats;
-    std::set<std::tuple<Coord, std::tuple<Coord, Coord, Coord, Coord>>> b_win_next_next_next_next_turn_threats;
+    std::set<WinNextNextTurnThreat> a_win_next_next_turn_threats;
+    std::set<WinNextNextTurnThreat> b_win_next_next_turn_threats;
+    std::set<WinNextNextNextTurnThreat> a_win_next_next_next_turn_threats;
+    std::set<WinNextNextNextTurnThreat> b_win_next_next_next_turn_threats;
+    std::set<WinNextNextNextNextTurnThreat> a_win_next_next_next_next_turn_threats;
+    std::set<WinNextNextNextNextTurnThreat> b_win_next_next_next_next_turn_threats;
 
     process_wins_and_threats(state, h, w, k, directions,
         a_piece, b_piece,
@@ -1885,12 +2121,12 @@ MinimaxAgent::EvalResult MinimaxAgent::calculate_value(const GameState& state, i
     double a_value, double b_value, int a_wins, int b_wins,
     const std::set<MinimaxAgent::Coord>& a_win_next_turn_threats,
     const std::set<MinimaxAgent::Coord>& b_win_next_turn_threats,
-    const std::set<std::tuple<MinimaxAgent::Coord, std::tuple<MinimaxAgent::Coord, MinimaxAgent::Coord>>>& a_win_next_next_turn_threats,
-    const std::set<std::tuple<MinimaxAgent::Coord, std::tuple<MinimaxAgent::Coord, MinimaxAgent::Coord>>>& b_win_next_next_turn_threats,
-    const std::set<std::tuple<MinimaxAgent::Coord, std::tuple<MinimaxAgent::Coord, MinimaxAgent::Coord, MinimaxAgent::Coord>>>& a_win_next_next_next_turn_threats,
-    const std::set<std::tuple<MinimaxAgent::Coord, std::tuple<MinimaxAgent::Coord, MinimaxAgent::Coord, MinimaxAgent::Coord>>>& b_win_next_next_next_turn_threats,
-    const std::set<std::tuple<MinimaxAgent::Coord, std::tuple<MinimaxAgent::Coord, MinimaxAgent::Coord, MinimaxAgent::Coord, MinimaxAgent::Coord>>>& a_win_next_next_next_next_turn_threats,
-    const std::set<std::tuple<MinimaxAgent::Coord, std::tuple<MinimaxAgent::Coord, MinimaxAgent::Coord, MinimaxAgent::Coord, MinimaxAgent::Coord>>>& b_win_next_next_next_next_turn_threats,
+    const std::set<MinimaxAgent::WinNextNextTurnThreat>& a_win_next_next_turn_threats,
+    const std::set<MinimaxAgent::WinNextNextTurnThreat>& b_win_next_next_turn_threats,
+    const std::set<MinimaxAgent::WinNextNextNextTurnThreat>& a_win_next_next_next_turn_threats,
+    const std::set<MinimaxAgent::WinNextNextNextTurnThreat>& b_win_next_next_next_turn_threats,
+    const std::set<MinimaxAgent::WinNextNextNextNextTurnThreat>& a_win_next_next_next_next_turn_threats,
+    const std::set<MinimaxAgent::WinNextNextNextNextTurnThreat>& b_win_next_next_next_next_turn_threats,
     const std::set<MinimaxAgent::Threat1>& a_k_1_threats,
     const std::set<MinimaxAgent::Threat1>& b_k_1_threats,
     const std::set<MinimaxAgent::Threat2>& a_k_2_threats,
@@ -1924,15 +2160,6 @@ MinimaxAgent::EvalResult MinimaxAgent::calculate_value(const GameState& state, i
     std::set<Threat3> a_k_3 = a_k_3_threats;
     std::set<Threat3> b_k_3 = b_k_3_threats;
 
-    auto is_disjoint = [](const std::set<Coord>& lhs, const std::set<Coord>& rhs) {
-        for (const auto& sq : lhs) {
-            if (rhs.count(sq) > 0) {
-                return false;
-            }
-        }
-        return true;
-    };
-
     double value = 0.0;
     int fast_forward_counter = 0;
 
@@ -1950,7 +2177,7 @@ MinimaxAgent::EvalResult MinimaxAgent::calculate_value(const GameState& state, i
                 for (int scan = 1 - k; scan < 1; ++scan) {
                     int i = blocking_square.first + scan * dx;
                     int j = blocking_square.second + scan * dy;
-                    std::vector<Coord> last(4, {-1, -1});
+                    std::vector<Coord> last(4, {-10, -10});
                     int a_count = 0;
                     int b_count = 0;
                     bool a_blocked = false;
@@ -2030,33 +2257,27 @@ MinimaxAgent::EvalResult MinimaxAgent::calculate_value(const GameState& state, i
 
     if (!b_win_next_next.empty() && a_k_1.empty()) {
         bool found_win = false;
-        for (auto it1 = b_win_next_next.begin(); it1 != b_win_next_next.end() && !found_win; ++it1) {
-            for (auto it2 = b_win_next_next.begin(); it2 != b_win_next_next.end(); ++it2) {
-                if (it1 == it2) continue;
+        for (const auto& w1 : b_win_next_next_turn_threats) {
+            if (found_win) {
+                break;
+            }
 
-                const Coord root1 = std::get<0>(*it1);
-                const Coord root2 = std::get<0>(*it2);
-                const auto child1 = std::get<1>(*it1);
-                const auto child2 = std::get<1>(*it2);
-                const Coord c1a = std::get<0>(child1);
-                const Coord c1b = std::get<1>(child1);
-                const Coord c2a = std::get<0>(child2);
-                const Coord c2b = std::get<1>(child2);
+            CoordSet w1_children;
+            add_children_to_set(w1.children, w1_children);
 
-                std::set<Coord> s1{root1, c1a, c1b};
-                std::set<Coord> s2{root2, c2a, c2b};
-                bool overlap = false;
-                for (const auto& sq : s1) {
-                    if (s2.count(sq) > 0) {
-                        overlap = true;
-                        break;
-                    }
+            for (const auto& w2 : b_win_next_next_turn_threats) {
+                // Equivalent to Python's difference({w1}).
+                if (w1 == w2) {
+                    continue;
                 }
 
-                if (root1 != root2 &&
-                    root1 != c2a && root1 != c2b &&
-                    root2 != c1a && root2 != c1b &&
-                    !overlap) {
+                CoordSet w2_children;
+                add_children_to_set(w2.children, w2_children);
+
+                if (w1.root != w2.root
+                    && w2_children.count(w1.root) == 0
+                    && w1_children.count(w2.root) == 0
+                    && coord_intersection(w1_children, w2_children).empty()) {
                     found_win = true;
                     break;
                 }
@@ -2084,26 +2305,45 @@ MinimaxAgent::EvalResult MinimaxAgent::calculate_value(const GameState& state, i
                 const Coord t1b = std::get<1>(t1);
 
                 for (const auto& w1 : a_win_next_next_next) {
-                    if (found_win) break;
+                    if (found_win) {
+                        break;
+                    }
 
-                    const Coord root = std::get<0>(w1);
-                    const auto refs = std::get<1>(w1);
-                    const Coord first0 = std::get<0>(refs);
-                    const Coord first1 = std::get<1>(refs);
-                    const Coord first2 = std::get<2>(refs);
-                    const bool match_root = (root == t1a || root == t1b);
-                    const bool match_first0 = (first0 == t1a || first0 == t1b);
-                    const bool match_first1 = (first1 == t1a || first1 == t1b);
-                    const bool match_first2 = (first2 == t1a || first2 == t1b);
+                    const Coord& root = w1.root;
+                    const auto& refs = w1.refs;
 
-                    if (!(match_root || match_first0 || match_first1 || match_first2)) {
+                    // Python:
+                    // w1[0] in t1
+                    // or t1[0] == w1[1][0][0]
+                    // or (len(w1[1]) == 2 and t1[1] == w1[1][1][0])
+                    const bool match_root =
+                        (root == t1a || root == t1b);
+
+                    const bool match_first =
+                        !refs.empty() &&
+                        (refs[0].root == t1a || refs[0].root == t1b);
+
+                    const bool match_second =
+                        refs.size() == 2 &&
+                        (refs[1].root == t1b);
+
+                    if (!(match_root || match_first || match_second)) {
                         continue;
                     }
 
-                    const Coord b_forced_square = (root == t1a) ? t1b : t1a;
-                    std::set<Coord> next_a_squares{first0, first1, first2};
+                    const Coord b_forced_square =
+                        (root == t1a) ? t1b : t1a;
+
+                    std::set<Coord> next_a_squares;
+
+                    for (const auto& ref : refs) {
+                        next_a_squares.insert(ref.root);
+                    }
+
                     auto it = b_k_1_threat_squares.find(b_forced_square);
-                    if (it == b_k_1_threat_squares.end() || next_a_squares.count(it->second) > 0) {
+
+                    if (it == b_k_1_threat_squares.end() ||
+                        next_a_squares.count(it->second) > 0) {
                         found_win = true;
                     }
                 }
@@ -2117,35 +2357,43 @@ MinimaxAgent::EvalResult MinimaxAgent::calculate_value(const GameState& state, i
     if (!b_win_next_next_next.empty() && a_k_1.empty()) {
         bool found_win = false;
 
-        for (const auto& w1 : b_win_next_next) {
-            if (found_win) break;
-            const Coord root1 = std::get<0>(w1);
-            const auto child1 = std::get<1>(w1);
-            const Coord c1a = std::get<0>(child1);
-            const Coord c1b = std::get<1>(child1);
-            const std::set<Coord> w1_children{c1a, c1b};
+        // Compare a two-step threat against a three-step threat.
+        for (const auto& w1 : b_win_next_next_turn_threats) {
+            if (found_win) {
+                break;
+            }
 
-            for (const auto& w2 : b_win_next_next_next) {
-                if (found_win) break;
-                const Coord root2 = std::get<0>(w2);
-                const auto refs2 = std::get<1>(w2);
-                const Coord r20 = std::get<0>(refs2);
-                const Coord r21 = std::get<1>(refs2);
-                const Coord r22 = std::get<2>(refs2);
-                const std::set<Coord> w2_squares{root2, r20, r21, r22};
+            for (const auto& w2 : b_win_next_next_next_turn_threats) {
+                if (found_win) {
+                    break;
+                }
 
-                if (root1 != root2 &&
-                    w2_squares.count(root1) == 0 &&
-                    w1_children.count(root2) == 0 &&
-                    is_disjoint(w1_children, w2_squares)) {
+                const Coord& root1 = w1.root;
+                const auto& children1 = w1.children;
+                const Coord& root2 = w2.root;
+
+                const CoordSet w2_squares = get_squares_from_wn3_threat(w2);
+
+                // Collect all children of w1 into a set.
+                CoordSet w1_children;
+                add_children_to_set(children1, w1_children);
+
+                if (root1 != root2
+                    && w2_squares.count(root1) == 0
+                    && w1_children.count(root2) == 0
+                    && coord_intersection(w1_children, w2_squares).empty()) {
+
                     found_win = true;
-                    for (const auto& t1 : a_k_2) {
-                        const Coord t0 = std::get<0>(t1);
-                        const Coord t1v = std::get<1>(t1);
-                        const Coord t2v = std::get<2>(t1);
-                        if (root1 == t0 || root1 == t1v || root1 == t2v ||
-                            c1a == t0 || c1a == t1v || c1a == t2v ||
-                            c1b == t0 || c1b == t1v || c1b == t2v) {
+
+                    for (const auto& t1 : a_k_2_threats) {
+                        const CoordSet t1_squares{
+                            std::get<0>(t1),
+                            std::get<1>(t1),
+                            std::get<2>(t1)
+                        };
+
+                        if (t1_squares.count(root1) > 0
+                            || !coord_intersection(w1_children, t1_squares).empty()) {
                             found_win = false;
                             break;
                         }
@@ -2154,39 +2402,38 @@ MinimaxAgent::EvalResult MinimaxAgent::calculate_value(const GameState& state, i
             }
         }
 
+        // Compare pairs of three-step threats.
         if (!found_win && b_win_next_next_next.size() >= 2) {
-            std::set<std::tuple<Coord, std::tuple<Coord, Coord, Coord>>> completed;
-            for (const auto& w1 : b_win_next_next_next) {
+            std::set<WinNextNextNextTurnThreat> completed;
+
+            for (const auto& w1 : b_win_next_next_next_turn_threats) {
                 completed.insert(w1);
-                if (found_win) break;
-                for (const auto& w2 : b_win_next_next_next) {
-                    if (completed.count(w2) > 0) continue;
-                    if (found_win) break;
 
-                    auto w1_squares = std::set<Coord>{};
-                    auto w2_squares = std::set<Coord>{};
-                    const Coord w1root = std::get<0>(w1);
-                    const auto w1refs = std::get<1>(w1);
-                    w1_squares.insert(w1root);
-                    w1_squares.insert(std::get<0>(w1refs));
-                    w1_squares.insert(std::get<1>(w1refs));
-                    w1_squares.insert(std::get<2>(w1refs));
-                    const Coord w2root = std::get<0>(w2);
-                    const auto w2refs = std::get<1>(w2);
-                    w2_squares.insert(w2root);
-                    w2_squares.insert(std::get<0>(w2refs));
-                    w2_squares.insert(std::get<1>(w2refs));
-                    w2_squares.insert(std::get<2>(w2refs));
+                if (found_win) {
+                    break;
+                }
 
-                    const auto w1_refs_len = std::tuple_size<std::remove_reference_t<decltype(std::get<1>(w1))>>::value;
-                    const auto w2_refs_len = std::tuple_size<std::remove_reference_t<decltype(std::get<1>(w2))>>::value;
-                    if ((w1_refs_len == 2 || w2_refs_len == 2) && !a_k_2.empty()) {
+                for (const auto& w2 : b_win_next_next_next_turn_threats) {
+                    if (completed.count(w2) > 0) {
+                        continue;
+                    }
+
+                    if (found_win) {
                         break;
                     }
-                    if (w1root != w2root &&
-                        w1_squares.count(w2root) == 0 &&
-                        w2_squares.count(w1root) == 0 &&
-                        is_disjoint(w1_squares, w2_squares)) {
+
+                    const CoordSet w1_squares = get_squares_from_wn3_threat(w1);
+                    const CoordSet w2_squares = get_squares_from_wn3_threat(w2);
+
+                    if ((w1.refs.size() == 2 || w2.refs.size() == 2)
+                        && !a_k_2_threats.empty()) {
+                        break;
+                    }
+
+                    if (w1.root != w2.root
+                        && w2_squares.count(w1.root) == 0
+                        && w1_squares.count(w2.root) == 0
+                        && coord_intersection(w1_squares, w2_squares).empty()) {
                         found_win = true;
                     }
                 }
@@ -2194,7 +2441,11 @@ MinimaxAgent::EvalResult MinimaxAgent::calculate_value(const GameState& state, i
         }
 
         if (found_win) {
-            return EvalResult{b_win_value, 7 + fast_forward_counter, b_win_result};
+            return EvalResult{
+                b_win_value,
+                7 + fast_forward_counter,
+                b_win_result
+            };
         }
     }
 
@@ -2205,51 +2456,59 @@ MinimaxAgent::EvalResult MinimaxAgent::calculate_value(const GameState& state, i
         }
     }
 
-    if (value == 0.0 && !b_win_next_next_next_next.empty() && a_k_1.empty()) {
-        bool found_win = false;
+if (value == 0.0 &&
+    !b_win_next_next_next_next.empty() &&
+    a_k_1.empty()) {
 
-        for (const auto& w1 : b_win_next_next) {
-            if (found_win) break;
-            const Coord root1 = std::get<0>(w1);
-            const auto child1 = std::get<1>(w1);
-            const Coord c1a = std::get<0>(child1);
-            const Coord c1b = std::get<1>(child1);
-            const std::set<Coord> w1_children{c1a, c1b};
+    bool found_win = false;
 
-            for (const auto& w2 : b_win_next_next_next_next) {
-                if (found_win) break;
-                const Coord root2 = std::get<0>(w2);
-                const auto refs2 = std::get<1>(w2);
-                const Coord r20 = std::get<0>(refs2);
-                const Coord r21 = std::get<1>(refs2);
-                const Coord r22 = std::get<2>(refs2);
-                const Coord r23 = std::get<3>(refs2);
-                const std::set<Coord> w2_squares{root2, r20, r21, r22, r23};
+    for (const auto& w1 : b_win_next_next_turn_threats) {
+        if (found_win) {
+            break;
+        }
 
-                if (root1 != root2 &&
-                    w2_squares.count(root1) == 0 &&
-                    w1_children.count(root2) == 0 &&
-                    is_disjoint(w1_children, w2_squares)) {
-                    found_win = true;
-                    for (const auto& t1 : a_k_2) {
-                        const Coord t0 = std::get<0>(t1);
-                        const Coord t1v = std::get<1>(t1);
-                        const Coord t2v = std::get<2>(t1);
-                        if (root1 == t0 || root1 == t1v || root1 == t2v ||
-                            c1a == t0 || c1a == t1v || c1a == t2v ||
-                            c1b == t0 || c1b == t1v || c1b == t2v) {
-                            found_win = false;
-                            break;
-                        }
+        for (const auto& w2 : b_win_next_next_next_next_turn_threats) {
+            if (found_win) {
+                break;
+            }
+
+            const Coord& root1 = w1.root;
+            const CoordSet w2_squares = get_squares_from_wn4_threat(w2);
+
+            CoordSet w1_children;
+            add_children_to_set(w1.children, w1_children);
+
+            if (root1 != w2.root
+                && w2_squares.count(root1) == 0
+                && w1_children.count(w2.root) == 0
+                && coord_intersection(w1_children, w2_squares).empty()) {
+
+                found_win = true;
+
+                for (const auto& t1 : a_k_2_threats) {
+                    const CoordSet t1_squares{
+                        std::get<0>(t1),
+                        std::get<1>(t1),
+                        std::get<2>(t1)
+                    };
+
+                    if (t1_squares.count(root1) > 0
+                        || !coord_intersection(w1_children, t1_squares).empty()) {
+                        found_win = false;
                     }
                 }
             }
         }
-
-        if (found_win) {
-            return EvalResult{b_win_value, 9 + fast_forward_counter, b_win_result};
-        }
     }
+
+    if (found_win) {
+        return EvalResult{
+            b_win_value,
+            9 + fast_forward_counter,
+            b_win_result
+        };
+    }
+}
 
     return EvalResult{std::round(a_sign * a_value + b_sign * b_value), 0, 0};
 }

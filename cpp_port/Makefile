@@ -1,5 +1,5 @@
 CXX := g++
-CXXFLAGS := -std=c++17 -O2 -Wall -Wextra -pedantic
+CXXFLAGS := -std=c++20 -O2 -Wall -Wextra -pedantic
 TARGET := k_in_row
 MINIMAX_TARGET := minimax_driver
 
