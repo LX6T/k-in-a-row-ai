@@ -16,12 +16,42 @@
 
 class MinimaxAgent {
 public:
-    using ZobristTable = std::vector<std::vector<std::uint32_t>>;
+    using ZobristTable = std::vector<std::vector<std::uint64_t>>;
     using ZobristMemory = std::unordered_map<std::uint64_t, std::tuple<GameState::Move, double, int, int, int>>;
     using ZobristHashing = std::tuple<ZobristTable, ZobristMemory, std::uint64_t>;
+    using BoardCells = std::vector<int>;
+    struct CanonicalPosition {
+        std::uint64_t key;
+        int symmetry;
+    };
 
+    struct SearchResult { GameState::Move move; double value; int deadline; int result; int fff; bool completed = true; };
+
+    static CanonicalPosition canonical_zobrist_key(
+        const GameState& state,
+        const ZobristTable& z_table
+    );
     static ZobristHashing make_zobrist_hashing(int rows, int cols, unsigned seed = 0);
     static std::uint64_t step_zobrist_key(std::uint64_t current_key, const ZobristTable& z_table, int row, int col, int z_index, int board_cols = -1);
+
+    void store_zobrist_entry(
+        const GameState& state,
+        const ZobristTable& z_table,
+        ZobristMemory& z_memory,
+        const GameState::Move& move,
+        double value,
+        int deadline,
+        int result,
+        int fff
+    ) const;
+
+    bool lookup_zobrist_entry(
+        const GameState& state,
+        const ZobristTable& z_table,
+        const ZobristMemory& z_memory,
+        SearchResult& out
+    ) const;
+
     MinimaxAgent(char piece, int max_depth = 3, unsigned seed = 0, int init_ff_branch_max = 0);
     GameState::Move choose_move(const GameState& state, int depth = -1) const;
     // Python-agent-compatible overload: search iteratively until this many seconds remain elapsed.
@@ -75,7 +105,6 @@ struct WinNextNextNextNextTurnThreat {
 
 private:
     struct EvalResult { double value; int deadline; int result; };
-    struct SearchResult { GameState::Move move; double value; int deadline; int result; int fff; bool completed = true; };
     using Clock = std::chrono::steady_clock;
     using TimePoint = Clock::time_point;
 
@@ -85,7 +114,7 @@ private:
     int init_ff_branch_max_;
 
     mutable int static_eval_calls = 0;
-    mutable std::array<int, 5> depth_counter = {};
+    mutable std::array<int, 10> depth_counter = {};
     mutable int depth_offset = 0;
 
     std::vector<GameState::Move> legal_moves(const GameState& state) const;

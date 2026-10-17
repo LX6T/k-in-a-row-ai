@@ -148,12 +148,201 @@ void add_children_to_set(
     }, children);
 }
 
+namespace {
+
+    // Map a source coordinate to its destination under a symmetry.
+    //
+    // 0: identity
+    // 1: left-right reflection
+    // 2: top-bottom reflection
+    // 3: 180-degree rotation
+    // 4: 90-degree clockwise rotation (square boards only)
+    // 5: 270-degree rotation (square boards only)
+    // 6: main-diagonal reflection (square boards only)
+    // 7: anti-diagonal reflection (square boards only)
+    GameState::Move transform_coord(
+        int r, int c, int rows, int cols, int symmetry
+    ) {
+        switch (symmetry) {
+            case 0: return {r, c};
+            case 1: return {r, cols - 1 - c};
+            case 2: return {rows - 1 - r, c};
+            case 3: return {rows - 1 - r, cols - 1 - c};
+
+            case 4: return {c, rows - 1 - r};
+            case 5: return {cols - 1 - c, r};
+            case 6: return {c, r};
+            case 7: return {rows - 1 - c, cols - 1 - r};
+
+            default: return {r, c};
+        }
+    }
+
+    int inverse_symmetry(int symmetry) {
+        switch (symmetry) {
+            case 4: return 5;
+            case 5: return 4;
+            default: return symmetry;
+        }
+    }
+
+} // namespace
+
+void MinimaxAgent::store_zobrist_entry(
+    const GameState& state,
+    const ZobristTable& z_table,
+    ZobristMemory& z_memory,
+    const GameState::Move& move,
+    double value,
+    int deadline,
+    int result,
+    int fff
+) const {
+    const CanonicalPosition canonical =
+        canonical_zobrist_key(state, z_table);
+
+    GameState::Move canonical_move{-1, -1};
+
+    if (move.first >= 0 && move.second >= 0) {
+        canonical_move = transform_coord(
+            move.first, move.second,
+            state.rows(), state.cols(),
+            canonical.symmetry
+        );
+    }
+
+    z_memory[canonical.key] = std::make_tuple(
+        canonical_move,
+        value,
+        deadline,
+        result,
+        fff
+    );
+}
+
+bool MinimaxAgent::lookup_zobrist_entry(
+    const GameState& state,
+    const ZobristTable& z_table,
+    const ZobristMemory& z_memory,
+    SearchResult& out
+) const {
+    const CanonicalPosition canonical =
+        canonical_zobrist_key(state, z_table);
+
+    const auto it = z_memory.find(canonical.key);
+
+    if (it == z_memory.end()) {
+        return false;
+    }
+
+    const auto& entry = it->second;
+
+    GameState::Move move = std::get<0>(entry);
+
+    if (move.first >= 0 && move.second >= 0) {
+        move = transform_coord(
+            move.first, move.second,
+            state.rows(), state.cols(),
+            inverse_symmetry(canonical.symmetry)
+        );
+    }
+
+    // Reject a cached move that isn't legal in this orientation.
+    if (move.first >= 0 && !state.is_valid_move(move)) {
+        return false;
+    }
+
+    out = SearchResult{
+        move,
+        std::get<1>(entry),
+        std::get<2>(entry),
+        std::get<3>(entry),
+        std::get<4>(entry)
+    };
+
+    return true;
+}
+
+MinimaxAgent::CanonicalPosition MinimaxAgent::canonical_zobrist_key(
+    const GameState& state,
+    const ZobristTable& z_table
+) {
+    const int rows = state.rows();
+    const int cols = state.cols();
+
+    // Ensure the Zobrist table corresponds to this board.
+    if (z_table.size() !=
+        static_cast<std::size_t>(rows) *
+        static_cast<std::size_t>(cols)) {
+        throw std::invalid_argument(
+            "Zobrist table dimensions do not match GameState"
+        );
+    }
+
+    const int symmetry_count = (rows == cols) ? 8 : 4;
+    const auto& board = state.board();
+
+    CanonicalPosition canonical{
+        std::numeric_limits<std::uint64_t>::max(),
+        0
+    };
+
+    for (int symmetry = 0;
+         symmetry < symmetry_count;
+         ++symmetry) {
+
+        std::uint64_t key = 0;
+
+        for (int r = 0; r < rows; ++r) {
+            for (int c = 0; c < cols; ++c) {
+                const char piece = board[r][c];
+
+                if (piece == GameState::EMPTY_PIECE) {
+                    continue;
+                }
+
+                int piece_index;
+
+                if (piece == GameState::X_PIECE) {
+                    piece_index = 0;
+                } else if (piece == GameState::O_PIECE) {
+                    piece_index = 1;
+                } else {
+                    throw std::invalid_argument(
+                        "Unexpected piece in GameState board"
+                    );
+                }
+
+                const auto [tr, tc] = transform_coord(
+                    r, c, rows, cols, symmetry
+                );
+
+                const std::size_t offset =
+                    static_cast<std::size_t>(tr) *
+                    static_cast<std::size_t>(cols) +
+                    static_cast<std::size_t>(tc);
+
+                key ^= static_cast<std::uint64_t>(
+                    z_table[offset][piece_index]
+                );
+            }
+        }
+
+        if (key < canonical.key) {
+            canonical.key = key;
+            canonical.symmetry = symmetry;
+        }
+    }
+
+    return canonical;
+}
+
 // make_zobrist_hashing --
 MinimaxAgent::ZobristHashing MinimaxAgent::make_zobrist_hashing(int rows, int cols, unsigned seed) {
     std::mt19937 rng(seed);
-    std::uniform_int_distribution<std::uint32_t> dist(0u, std::numeric_limits<std::uint32_t>::max());
+    std::uniform_int_distribution<std::uint64_t> dist(0u, std::numeric_limits<std::uint64_t>::max());
 
-    ZobristTable z_table(static_cast<std::size_t>(rows * cols), std::vector<std::uint32_t>(2, 0u));
+    ZobristTable z_table(static_cast<std::size_t>(rows * cols), std::vector<std::uint64_t>(2, 0u));
     for (auto& entry : z_table) {
         entry[0] = dist(rng);
         entry[1] = dist(rng);
@@ -162,24 +351,24 @@ MinimaxAgent::ZobristHashing MinimaxAgent::make_zobrist_hashing(int rows, int co
 }
 
 // step_zobrist_key --
-std::uint64_t MinimaxAgent::step_zobrist_key(std::uint64_t current_key, const ZobristTable& z_table, int row, int col, int z_index,
-    int board_cols) {
-    if (row < 0 || col < 0) {
-        return current_key;
+std::uint64_t MinimaxAgent::step_zobrist_key(
+    std::uint64_t current_key, const ZobristTable& z_table,
+    int row, int col, int z_index, int board_cols
+) {
+    if (row < 0 || col < 0 || board_cols <= 0 ||
+        col >= board_cols || z_index < 0 || z_index >= 2) {
+        std::cerr << "Error: invalid step_zobrist_key arguments\n";
+        std::exit(EXIT_FAILURE);
     }
 
-    int width = board_cols;
-    if (width <= 0) {
-        width = static_cast<int>(std::sqrt(static_cast<double>(z_table.size())));
-    }
-    if (width <= 0) {
-        return current_key;
+    const std::size_t offset =
+        static_cast<std::size_t>(row) * board_cols + col;
+
+    if (offset >= z_table.size() || z_table[offset].size() < 2) {
+        std::cerr << "Error: step_zobrist_key out of bounds\n";
+        std::exit(EXIT_FAILURE);
     }
 
-    const std::size_t offset = static_cast<std::size_t>(row * width + col);
-    if (offset >= z_table.size()) {
-        return current_key;
-    }
     return current_key ^ static_cast<std::uint64_t>(z_table[offset][z_index]);
 }
 
@@ -1232,7 +1421,7 @@ GameState::Move MinimaxAgent::choose_move_impl(
 
         bool timed_out = false;
         SearchResult result;
-        depth_counter = {0, 0, 0, 0, 0};
+        depth_counter = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
         depth_offset = current_depth;
         if (timeout && Clock::now() >= *timeout - wrapup) break;
 
@@ -1338,9 +1527,17 @@ MinimaxAgent::SearchResult MinimaxAgent::minimax(const GameState& state, int dep
         const EvalResult eval = static_eval_result(state);
         SearchResult result{GameState::Move{-1, -1}, eval.value, eval.deadline, eval.result, ff};
         if (z_hashing != nullptr) {
+            auto& z_table = std::get<0>(*z_hashing);
             auto& z_memory = std::get<1>(*z_hashing);
-            auto& z_key = std::get<2>(*z_hashing);
-            z_memory[z_key] = std::make_tuple(result.move, result.value, result.deadline, result.result, result.fff);
+            // auto& z_key = std::get<2>(*z_hashing);
+
+            // z_memory[z_key] = std::make_tuple(result.move, result.value, result.deadline, result.result, result.fff);
+
+            store_zobrist_entry(
+                state, z_table, z_memory,
+                result.move, result.value, result.deadline,
+                result.result, result.fff
+            );
         }
         return result;
     }
@@ -1730,14 +1927,19 @@ MinimaxAgent::SearchResult MinimaxAgent::minimax(const GameState& state, int dep
     }
     if (z_hashing != nullptr) {
         auto& z_memory = std::get<1>(*z_hashing);
-        auto& z_key = std::get<2>(*z_hashing);
+        // auto& z_key = std::get<2>(*z_hashing);
 
-        z_memory[z_key] = std::make_tuple(
-            best_move,
-            best_value,
-            best_deadline + 1,
-            best_result,
-            best_fff
+        // z_memory[z_key] = std::make_tuple(
+        //     best_move,
+        //     best_value,
+        //     best_deadline + 1,
+        //     best_result,
+        //     best_fff
+        // );
+        store_zobrist_entry(
+            state, std::get<0>(*z_hashing), z_memory,
+            best_move, best_value, best_deadline + 1,
+            best_result, best_fff
         );
     }
 
@@ -1949,19 +2151,11 @@ bool MinimaxAgent::search_moves(
         const GameState new_state = state.make_move(move);
         const std::uint64_t new_z_key = step_zobrist_key(old_z_key, z_table,move.first, move.second, z_index, state.cols());
 
-        // Find the value of the new state
+        // Find the value of the new state.
         SearchResult child_result;
-        const auto cached = z_memory.find(new_z_key);
-        if (cached != z_memory.end()) {
-            child_result = SearchResult{
-                std::get<0>(cached->second),
-                std::get<1>(cached->second),
-                std::get<2>(cached->second),
-                std::get<3>(cached->second),
-                std::get<4>(cached->second),
-                true
-            };
-        } else {
+
+        if (!lookup_zobrist_entry(new_state, z_table, z_memory, child_result)) {
+            // Cache miss: search the new state as before.
             z_key = new_z_key;
             const int new_depth_remaining = can_fast_forward ? depth_remaining : depth_remaining - 1;
             const int new_ff = can_fast_forward ? ff + 1 : ff;
