@@ -1499,7 +1499,7 @@ GameState::Move MinimaxAgent::choose_move_impl(
     std::cout << "\nCalled static_eval() "
         << static_eval_calls
         << " times\n";
-    for (int i = 0; i <= max_depth; ++i) {
+    for (int i = 0; i <= 100; ++i) {
         if (depth_counter[i] == 0) break;
         std::cout << i << "\t| " << depth_counter[i] << "\n";
     }
