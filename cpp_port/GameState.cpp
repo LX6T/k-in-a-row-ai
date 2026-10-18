@@ -101,12 +101,13 @@ GameState::Outcome GameState::winner() const {
 }
 
 void GameState::print(std::ostream& os) const {
-    os << "   ";
+    os << "    ";
     for (int c = 0; c < cols_; ++c) {
-        os << " " << c << "  ";
+        os << " " << c << " ";
+        if (c < 10) os << " ";
     }
 
-    os << "\n  +";
+    os << "\n   +";
     for (int c = 0; c < cols_; ++c) {
         os << "---";
         if (c != cols_ - 1) {
@@ -116,14 +117,16 @@ void GameState::print(std::ostream& os) const {
     os << "+\n";
 
     for (int r = 0; r < rows_; ++r) {
-        os << std::to_string(r) << " |";
+        os << std::to_string(r);
+        if (r < 10) os << " ";
+        os << " |";
         for (int c = 0; c < cols_; ++c) {
             os << " " << board_[r][c] << " |";
         }
         os << "\n";
     }
 
-    os << "  +";
+    os << "   +";
     for (int c = 0; c < cols_; ++c) {
         os << "---";
         if (c != cols_ - 1) {
